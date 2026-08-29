@@ -6,12 +6,11 @@ const _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 let parsedQueue = [];
 let liveTrackingInterval;
 
-// 2. Initialize Clerk safely after the browser loads the script
-window.addEventListener("load", async function () {
+// 2. Initialize Clerk (Called safely by index.html script onload)
+async function initClerk() {
     await window.Clerk.load();
 
     if (window.Clerk.user) {
-        // User is authenticated
         document.getElementById('auth-container').style.display = 'none';
         document.getElementById('dashboard-content').style.display = 'block';
         window.Clerk.mountUserButton(document.getElementById('user-button'));
@@ -19,13 +18,12 @@ window.addEventListener("load", async function () {
         fetchLiveTracking();
         liveTrackingInterval = setInterval(fetchLiveTracking, 5000); 
     } else {
-        // User is not authenticated
         document.getElementById('dashboard-content').style.display = 'none';
         window.Clerk.mountSignIn(document.getElementById('auth-container'));
     }
-});
+}
 
-// 3. Automatic Tracking Engine (Polls Supabase every 5 seconds)
+// 3. Automatic Tracking Engine
 async function fetchLiveTracking() {
     if (parsedQueue.length > 0) return;
 
@@ -63,7 +61,7 @@ async function fetchLiveTracking() {
     }
 }
 
-// 4. CSV Upload & Preview Logic
+// 4. CSV Upload Logic
 document.getElementById('csv-file').addEventListener('change', function(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -71,9 +69,7 @@ document.getElementById('csv-file').addEventListener('change', function(event) {
     const reader = new FileReader();
     
     reader.onload = function(e) {
-        const text = e.target.result;
-        const rows = text.split('\n');
-        
+        const rows = e.target.result.split('\n');
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = ''; 
         parsedQueue = []; 
@@ -109,20 +105,14 @@ document.getElementById('csv-file').addEventListener('change', function(event) {
 
 // 5. Sync Data to Supabase Database
 document.getElementById('process-btn').addEventListener('click', async function() {
-    if (parsedQueue.length === 0) {
-        alert("No orders to sync.");
-        return;
-    }
+    if (parsedQueue.length === 0) return;
 
     this.textContent = "Syncing...";
     this.disabled = true;
 
-    const { data, error } = await _supabase
-        .from('bulk_orders')
-        .insert(parsedQueue);
+    const { error } = await _supabase.from('bulk_orders').insert(parsedQueue);
 
     if (error) {
-        console.error("Supabase Error:", error);
         alert("Error syncing database: " + error.message);
         this.textContent = "Sync Orders to Database";
         this.disabled = false;

@@ -11,16 +11,7 @@
         button { background: #f90; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     </style>
-    <!-- 1. Supabase Integration -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- 2. Clerk Authentication (Added directly to HTML) -->
-    <script 
-        async 
-        crossorigin="anonymous" 
-        data-clerk-publishable-key="pk_test_ZGVlcC1nbG93d29ybS02ODYwLmNsZXJrLmFjY291bnRzLmRldiQ" 
-        src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js">
-    </script>
 </head>
 <body>
     <div class="header">
@@ -52,6 +43,16 @@
         </table>
     </div>
 
+    <!-- 1. Load your local logic first -->
     <script src="dashboard.js"></script>
+    
+    <!-- 2. Load Clerk last and safely trigger initClerk() -->
+    <script 
+        async 
+        crossorigin="anonymous" 
+        data-clerk-publishable-key="pk_test_ZGVlcC1nbG93d29ybS02ODYwLmNsZXJrLmFjY291bnRzLmRldiQ" 
+        src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
+        onload="initClerk()">
+    </script>
 </body>
 </html>
