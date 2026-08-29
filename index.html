@@ -11,7 +11,16 @@
         button { background: #f90; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     </style>
+    <!-- 1. Supabase Integration -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- 2. Clerk Authentication (Added directly to HTML) -->
+    <script 
+        async 
+        crossorigin="anonymous" 
+        data-clerk-publishable-key="pk_test_ZGVlcC1nbG93d29ybS02ODYwLmNsZXJrLmFjY291bnRzLmRldiQ" 
+        src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js">
+    </script>
 </head>
 <body>
     <div class="header">
@@ -28,10 +37,10 @@
             <p>Upload CSV File (Format: ASIN, Quantity)</p>
             <input type="file" id="csv-file" accept=".csv">
         </div>
-        <button id="process-btn" style="display: none;">Sync Orders to Database</button>
+        <button id="process-btn" style="display: none; margin-bottom: 20px;">Sync Orders to Database</button>
 
         <h3 style="margin-top: 40px;">Live Order Tracking</h3>
-        <table id="order-table">
+        <table id="order-table" style="display: none;">
             <thead>
                 <tr>
                     <th>ASIN</th>
