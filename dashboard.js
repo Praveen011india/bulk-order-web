@@ -1,6 +1,6 @@
 // Initialize Supabase (Replace with your actual project URL and anon key)
-const supabaseUrl = 'https://YOUR_PROJECT_ID.supabase.co';
-const supabaseKey = 'YOUR_ANON_KEY';
+const supabaseUrl = 'https://kjcvmchftyeiccfpiemd.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqY3ZtY2hmdHllaWNjZnBpZW1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMTM2MjcsImV4cCI6MjEwMzU4OTYyN30.m4wUParS14xU7FnAU3y-Eqtxjyvd3rNKFFrP0EL_Chk';
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
 let parsedQueue = [];
@@ -21,20 +21,24 @@ document.getElementById('csv-file').addEventListener('change', function(event) {
         
         for (let i = 1; i < rows.length; i++) {
             const columns = rows[i].split(',');
-            if (columns.length >= 2) {
-                const asin = columns[0].trim();
-                const qty = parseInt(columns[1].trim(), 10);
-                
-                if (asin) {
-                    parsedQueue.push({ asin: asin, quantity: qty, status: 'pending' });
-                    tbody.innerHTML += `
-                        <tr>
-                            <td>${asin}</td>
-                            <td>${qty}</td>
-                            <td>Pending Sync</td>
-                        </tr>
-                    `;
-                }
+            const asin = columns[0] ? columns[0].trim() : '';
+            
+            // Default quantity to 1 if missing or invalid in the CSV
+            let qty = 1; 
+            if (columns.length >= 2 && columns[1].trim() !== '') {
+                const parsed = parseInt(columns[1].trim(), 10);
+                if (!isNaN(parsed)) qty = parsed;
+            }
+            
+            if (asin) {
+                parsedQueue.push({ asin: asin, quantity: qty, status: 'pending' });
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${asin}</td>
+                        <td>${qty}</td>
+                        <td>Pending Sync</td>
+                    </tr>
+                `;
             }
         }
         
