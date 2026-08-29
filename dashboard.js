@@ -6,38 +6,27 @@ const _supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 let parsedQueue = [];
 let liveTrackingInterval;
 
-// 2. Initialize Clerk Authentication
-const clerkPubKey = 'pk_test_ZGVlcC1nbG93d29ybS02ODYwLmNsZXJrLmFjY291bnRzLmRldiQ';
+// 2. Initialize Clerk safely after the browser loads the script
+window.addEventListener("load", async function () {
+    await window.Clerk.load();
 
-const script = document.createElement('script');
-script.setAttribute('data-clerk-publishable-key', clerkPubKey);
-script.async = true;
-script.src = `https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js`;
-script.crossOrigin = 'anonymous';
-document.head.appendChild(script);
-
-script.onload = async () => {
-    const Clerk = window.Clerk;
-    await Clerk.load();
-
-    if (Clerk.user) {
-        // User is authenticated: Show dashboard, hide login, start live tracking
+    if (window.Clerk.user) {
+        // User is authenticated
         document.getElementById('auth-container').style.display = 'none';
         document.getElementById('dashboard-content').style.display = 'block';
-        Clerk.mountUserButton(document.getElementById('user-button'));
+        window.Clerk.mountUserButton(document.getElementById('user-button'));
         
         fetchLiveTracking();
         liveTrackingInterval = setInterval(fetchLiveTracking, 5000); 
     } else {
-        // User is not authenticated: Show login, hide dashboard
+        // User is not authenticated
         document.getElementById('dashboard-content').style.display = 'none';
-        Clerk.mountSignIn(document.getElementById('auth-container'));
+        window.Clerk.mountSignIn(document.getElementById('auth-container'));
     }
-};
+});
 
 // 3. Automatic Tracking Engine (Polls Supabase every 5 seconds)
 async function fetchLiveTracking() {
-    // Pause live updates if the user is actively previewing an unsynced CSV file
     if (parsedQueue.length > 0) return;
 
     const { data, error } = await _supabase
@@ -56,9 +45,9 @@ async function fetchLiveTracking() {
     
     data.forEach(order => {
         let statusColor = '#fff';
-        if (order.status === 'completed') statusColor = '#10b981'; // Green
-        if (order.status === 'pending') statusColor = '#f59e0b'; // Yellow
-        if (order.status === 'error') statusColor = '#ef4444'; // Red
+        if (order.status === 'completed') statusColor = '#10b981'; 
+        if (order.status === 'pending') statusColor = '#f59e0b'; 
+        if (order.status === 'error') statusColor = '#ef4444'; 
         
         tbody.innerHTML += `
             <tr>
@@ -87,13 +76,12 @@ document.getElementById('csv-file').addEventListener('change', function(event) {
         
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = ''; 
-        parsedQueue = []; // Reset queue for new upload
+        parsedQueue = []; 
         
         for (let i = 1; i < rows.length; i++) {
             const columns = rows[i].split(',');
             const asin = columns[0] ? columns[0].trim() : '';
             
-            // Default quantity to 1 if missing or invalid in the CSV
             let qty = 1; 
             if (columns.length >= 2 && columns[1].trim() !== '') {
                 const parsed = parseInt(columns[1].trim(), 10);
@@ -129,7 +117,6 @@ document.getElementById('process-btn').addEventListener('click', async function(
     this.textContent = "Syncing...";
     this.disabled = true;
 
-    // Bulk insert array directly into Supabase
     const { data, error } = await _supabase
         .from('bulk_orders')
         .insert(parsedQueue);
@@ -143,9 +130,9 @@ document.getElementById('process-btn').addEventListener('click', async function(
         alert("Successfully synced to database!");
         this.textContent = "Sync Orders to Database";
         this.disabled = false;
-        this.style.display = 'none'; // Hide button after success
+        this.style.display = 'none'; 
         
-        parsedQueue = []; // Clear local queue so live tracking resumes
-        fetchLiveTracking(); // Instantly load live data from database
+        parsedQueue = []; 
+        fetchLiveTracking(); 
     }
 });
