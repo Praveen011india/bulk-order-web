@@ -9,29 +9,40 @@
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { padding: 12px; border: 1px solid #334155; text-align: left; }
         button { background: #f90; border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <h2>Bulk Order Dashboard</h2>
-    
-    <div class="upload-box">
-        <p>Upload CSV File (Format: ASIN, Quantity)</p>
-        <input type="file" id="csv-file" accept=".csv">
+    <div class="header">
+        <h2>Bulk Order Dashboard</h2>
+        <div id="user-button"></div>
     </div>
 
-    <button id="process-btn" style="display: none;">Sync Orders to Database</button>
+    <!-- Clerk Login Screen -->
+    <div id="auth-container" style="display: flex; justify-content: center; margin-top: 50px;"></div>
 
-    <table id="order-table" style="display: none;">
-        <thead>
-            <tr>
-                <th>ASIN</th>
-                <th>Quantity</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody id="table-body"></tbody>
-    </table>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Main Dashboard (Hidden until login) -->
+    <div id="dashboard-content" style="display: none;">
+        <div class="upload-box">
+            <p>Upload CSV File (Format: ASIN, Quantity)</p>
+            <input type="file" id="csv-file" accept=".csv">
+        </div>
+        <button id="process-btn" style="display: none;">Sync Orders to Database</button>
+
+        <h3 style="margin-top: 40px;">Live Order Tracking</h3>
+        <table id="order-table">
+            <thead>
+                <tr>
+                    <th>ASIN</th>
+                    <th>Quantity</th>
+                    <th>Live Status</th>
+                </tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+    </div>
+
     <script src="dashboard.js"></script>
 </body>
 </html>
