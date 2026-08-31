@@ -60,6 +60,7 @@ const AppController = {
         btn.innerText = "Syncing to Database...";
         btn.disabled = true;
 
+        // FIXED: Pushing only ASIN, quantity, and status to match your exact Supabase schema
         const { error } = await _supabase.from('bulk_orders').insert(AppState.queue);
 
         if (error) {
@@ -102,7 +103,15 @@ const AppController = {
                 for (let i = 1; i < rows.length; i++) {
                     const cols = rows[i].split(',');
                     const asin = cols[0] ? cols[0].trim() : '';
-                    if (asin) AppState.queue.push({ asin, quantity: parseInt(cols[1]) || 1, status: 'pending', platform: 'amazon' });
+                    
+                    // FIXED: Removed the invalid "platform" key causing the crash
+                    if (asin) {
+                        AppState.queue.push({ 
+                            asin: asin, 
+                            quantity: parseInt(cols[1]) || 1, 
+                            status: 'pending' 
+                        });
+                    }
                 }
                 if (AppState.queue.length > 0) {
                     document.getElementById('process-btn').classList.remove('hidden');
