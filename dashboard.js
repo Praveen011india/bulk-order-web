@@ -18,7 +18,7 @@
 const CONFIG = {
     SUPABASE_URL: 'https://kjcvmchftyeiccfpiemd.supabase.co',
     SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqY3ZtY2hmdHllaWNjZnBpZW1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMTM2MjcsImV4cCI6MjEwMzU4OTYyN30.m4wUParS14xU7FnAU3y-Eqtxjyvd3rNKFFrP0EL_Chk',
-    GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY_HERE', 
+    GEMINI_API_KEY: 'AQ.Ab8RN6KRVzMyEYPONgoNoXFUPZWEZY8UUjR-2nSsIZkYdPEYdA', 
     POLL_INTERVAL: 4000, 
     MAX_BATCH: 500
 };
@@ -144,7 +144,7 @@ const GeminiAI = {
     async extractASIN(query) {
         try {
             const prompt = `Extract ONLY the 10-character Amazon ASIN, or Flipkart/Shopsy Product ID from this input. Return ONLY the alphanumeric ID. Input: ${query}`;
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`, {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
