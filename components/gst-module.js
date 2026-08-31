@@ -8,7 +8,7 @@ window.GSTModule = {
         const wrapper = document.createElement('div');
         wrapper.className = 'module-fade-in w-full';
         
-        const liveOrders = window.AppState ? window.AppState.liveData : [];
+        const liveOrders = window.AppState ? window.AppState.liveOrders : [];
 
         wrapper.innerHTML = `
             <div class="glass-panel rounded-xl overflow-hidden border border-white/10 shadow-lg">
@@ -46,7 +46,6 @@ window.GSTModule = {
         }
 
         return completed.map(order => {
-            // Mock calculations for visual UI completion
             const val = Math.floor(Math.random() * 5000) + 500;
             const gst = (val * 0.18).toFixed(2);
             const shortId = order.id ? order.id.toString().substring(0, 8) : 'ORD-123';

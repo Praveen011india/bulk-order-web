@@ -141,7 +141,23 @@
         </div>
     </div>
 
-    <script src="dashboard.js"></script>
-    <script async crossorigin="anonymous" data-clerk-publishable-key="pk_test_ZGVlcC1nbG93d29ybS02ODYwLmNsZXJrLmFjY291bnRzLmRldiQ" src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"></script>
-</body>
+   <!-- 1. Cloud Database CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- 2. Core Backend Utilities -->
+<script src="lib/csv-parser.js"></script>
+
+<!-- 3. Modular UI Renderers -->
+<script src="components/order-module.js"></script>
+<script src="components/tracking-module.js"></script>
+<script src="components/gst-module.js"></script>
+<script src="components/otp-module.js"></script>
+<script src="components/coupon-module.js"></script>
+<script src="components/refund-module.js"></script>
+
+<!-- 4. Master SPA Controller -->
+<script src="dashboard.js"></script>
+
+<!-- 5. Clerk Authentication (Headless) -->
+<script async crossorigin="anonymous" data-clerk-publishable-key="pk_test_ZGVlcC1nbG93d29ybS02ODYwLmNsZXJrLmFjY291bnRzLmRldiQ" src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"></script>
 </html>

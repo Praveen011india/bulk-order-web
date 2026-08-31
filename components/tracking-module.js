@@ -1,6 +1,6 @@
 /**
  * components/tracking-module.js
- * Handles live logistics and delivery tracking UI.
+ * Handles live logistics and delivery tracking UI using real Supabase data.
  */
 
 window.TrackingModule = {
@@ -8,7 +8,7 @@ window.TrackingModule = {
         const wrapper = document.createElement('div');
         wrapper.className = 'module-fade-in w-full';
         
-        const liveOrders = window.AppState ? window.AppState.liveData : [];
+        const liveOrders = window.AppState ? window.AppState.liveOrders : [];
         const shipped = liveOrders.filter(o => o.tracking_status === 'shipped').length;
         const outForDelivery = liveOrders.filter(o => o.tracking_status === 'out_for_delivery').length;
         const delivered = liveOrders.filter(o => o.tracking_status === 'delivered').length;
@@ -35,20 +35,22 @@ window.TrackingModule = {
                     </div>
                 </div>
                 
-                <table class="w-full text-left border-collapse border-t border-white/10">
-                    <thead class="bg-slate-800/50 text-slate-300 text-xs uppercase tracking-wider">
-                        <tr>
-                            <th class="p-4 font-semibold">ASIN</th>
-                            <th class="p-4 font-semibold">Courier</th>
-                            <th class="p-4 font-semibold">Tracking ID</th>
-                            <th class="p-4 font-semibold">Status</th>
-                            <th class="p-4 font-semibold">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-white/5 text-sm">
-                        ${this.generateTrackingRows(liveOrders)}
-                    </tbody>
-                </table>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse border-t border-white/10">
+                        <thead class="bg-slate-800/50 text-slate-300 text-xs uppercase tracking-wider">
+                            <tr>
+                                <th class="p-4 font-semibold">ASIN</th>
+                                <th class="p-4 font-semibold">Courier</th>
+                                <th class="p-4 font-semibold">Tracking ID</th>
+                                <th class="p-4 font-semibold">Status</th>
+                                <th class="p-4 font-semibold">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5 text-sm">
+                            ${this.generateTrackingRows(liveOrders)}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         `;
         return wrapper;
@@ -58,7 +60,7 @@ window.TrackingModule = {
         const validOrders = liveOrders.filter(o => o.status === 'completed');
         
         if (validOrders.length === 0) {
-            return `<tr><td colspan="5" class="p-8 text-center text-slate-500">No shipped orders available for tracking.</td></tr>`;
+            return `<tr><td colspan="5" class="p-12 text-center text-slate-500">No shipped orders available for tracking.</td></tr>`;
         }
         
         return validOrders.map(order => {
@@ -67,8 +69,8 @@ window.TrackingModule = {
             let tStatus = order.tracking_status || 'processing';
             let badgeStyle = 'bg-slate-700 text-slate-300';
             
-            if(tStatus === 'shipped') badgeStyle = 'bg-blue-900/50 text-blue-400 border-blue-500/30';
-            if(tStatus === 'delivered') badgeStyle = 'bg-emerald-900/50 text-emerald-400 border-emerald-500/30';
+            if(tStatus === 'shipped') badgeStyle = 'bg-blue-900/50 text-blue-400 border border-blue-500/30';
+            if(tStatus === 'delivered') badgeStyle = 'bg-emerald-900/50 text-emerald-400 border border-emerald-500/30';
 
             return `
                 <tr class="hover:bg-white/5 transition-colors">
@@ -76,7 +78,7 @@ window.TrackingModule = {
                     <td class="p-4 text-slate-300">${courier}</td>
                     <td class="p-4 text-blue-400 font-mono hover:underline cursor-pointer">${trackingId}</td>
                     <td class="p-4">
-                        <span class="${badgeStyle} px-2 py-1 rounded text-xs border border-transparent">${tStatus.toUpperCase()}</span>
+                        <span class="${badgeStyle} px-2 py-1 rounded text-xs">${tStatus.toUpperCase()}</span>
                     </td>
                     <td class="p-4"><button class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-white transition-colors">Track Live</button></td>
                 </tr>
