@@ -16,7 +16,7 @@
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
                 BulkOrderBuddy
             </div>
-            <button class="demo-btn bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded font-medium">Book a Demo</button>
+            <button class="demo-btn bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded font-medium transition-colors">Book a Demo</button>
         </nav>
 
         <!-- Hero Section -->
@@ -43,7 +43,7 @@
                         <p class="text-xs text-gray-500">View order status, GST, tracking...</p>
                     </div>
                 </div>
-                <button class="demo-btn bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded font-bold">Book a Demo</button>
+                <button class="demo-btn bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded font-bold transition-colors">Book a Demo</button>
             </div>
 
             <!-- Custom Login Box -->
@@ -65,7 +65,7 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
                         <input type="password" id="password" required class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:border-emerald-500" placeholder="Enter your password">
                     </div>
-                    <button type="submit" id="login-submit-btn" class="w-full bg-[#111] hover:bg-black text-white font-bold py-3 rounded mt-2">Sign in</button>
+                    <button type="submit" id="login-submit-btn" class="w-full bg-[#111] hover:bg-black text-white font-bold py-3 rounded mt-2 transition-colors">Sign in</button>
                 </form>
             </div>
         </main>
@@ -83,9 +83,10 @@
                 <div>
                     <p class="font-bold mb-3">Quick Links</p>
                     <ul class="text-gray-500 space-y-2">
-                        <li>Terms of Service</li>
-                        <li>Privacy Policy</li>
-                        <li>About Us</li>
+                        <!-- Converted to actual clickable URLs -->
+                        <li><a href="#" class="hover:text-emerald-600 transition-colors">Terms of Service</a></li>
+                        <li><a href="#" class="hover:text-emerald-600 transition-colors">Privacy Policy</a></li>
+                        <li><a href="#" class="hover:text-emerald-600 transition-colors">About Us</a></li>
                     </ul>
                 </div>
                 <div>
@@ -100,7 +101,7 @@
     <!-- DEMO MODAL -->
     <div id="demo-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
         <div class="bg-white rounded-xl p-8 max-w-sm w-full shadow-2xl relative">
-            <button id="close-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-black">✕</button>
+            <button id="close-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-black transition-colors">✕</button>
             <h3 class="font-bold text-xl mb-1">Book a Demo</h3>
             <p class="text-sm text-gray-500 mb-6">Contact us to schedule a demo</p>
             <div class="border border-gray-200 rounded p-4 flex items-center gap-3">
@@ -111,7 +112,7 @@
                 </div>
             </div>
             <div class="mt-6 flex justify-end">
-                <button class="border border-gray-300 rounded px-4 py-2 text-sm font-bold hover:bg-gray-50" onclick="document.getElementById('demo-modal').classList.add('hidden')">Close</button>
+                <button class="border border-gray-300 rounded px-4 py-2 text-sm font-bold hover:bg-gray-50 transition-colors" onclick="document.getElementById('demo-modal').classList.add('hidden')">Close</button>
             </div>
         </div>
     </div>
