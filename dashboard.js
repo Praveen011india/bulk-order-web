@@ -1,232 +1,127 @@
-/**
- * dashboard.js
- * Master SPA Router, State Manager, and Auth Controller.
- * Orchestrates component routing, global state, Clerk authentication, and the Gemini AI pipeline.
- */
-
-// ==========================================
-// 1. GLOBAL STATE MANAGEMENT
-// ==========================================
-window.AppState = {
-    user: null,
-    activeRoute: 'orders',
-    queue: [],         // Local queue containing Gemini AI resolved ASINs & CSV uploads
-    liveData: [],      // Live data polled from Supabase
-    platformFilter: 'all',
-    isPolling: false
-};
-
-// ==========================================
-// 2. GLOBAL UI UTILITIES
-// ==========================================
-window.UI = {
-    showToast(message, type = 'info') {
-        const toast = document.createElement('div');
-        toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg text-white font-bold shadow-xl transition-all duration-500 z-50 transform translate-y-0 opacity-100`;
-        
-        const colors = {
-            success: '#10b981', // Emerald
-            error: '#ef4444',   // Red
-            warning: '#f59e0b', // Amber
-            info: '#3b82f6'     // Blue
-        };
-        toast.style.backgroundColor = colors[type] || colors.info;
-        toast.innerText = message;
-        
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.classList.add('translate-y-4', 'opacity-0');
-            setTimeout(() => toast.remove(), 500);
-        }, 4000);
-    }
-};
-
-// ==========================================
-// 3. DATABASE ENGINE (Supabase Interop)
-// ==========================================
-// Note: If using lib/supabase.js, ensure this configuration matches your cloud keys.
 const SUPABASE_URL = 'https://kjcvmchftyeiccfpiemd.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR_ACTUAL_ANON_KEY_HERE';
-const _supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqY3ZtY2hmdHllaWNjZnBpZW1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMTM2MjcsImV4cCI6MjEwMzU4OTYyN30.m4wUParS14xU7FnAU3y-Eqtxjyvd3rNKFFrP0EL_Chk';
+const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-window.SupabaseClient = {
-    async fetchActiveOrders() {
-        if (!_supabase) return [];
-        const { data, error } = await _supabase
-            .from('bulk_orders')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(500); // High-speed automation claims up to 500 orders
-            
-        if (error) {
-            console.error("Supabase Fetch Error:", error);
-            return [];
-        }
-        return data || [];
-    },
-
-    async insertOrders(queueArray) {
-        if (!_supabase || queueArray.length === 0) return false;
-        
-        // Enrich queue with metadata before cloud sync
-        const enrichedQueue = queueArray.map(item => ({
-            ...item,
-            user_id: window.AppState.user?.id || 'anonymous',
-            tracking_status: 'processing',
-            refund_status: 'none',
-            created_at: new Date().toISOString()
-        }));
-
-        const { error } = await _supabase.from('bulk_orders').insert(enrichedQueue);
-        if (error) {
-            console.error("Supabase Insert Error:", error);
-            return false;
-        }
-        return true;
-    }
+const AppState = {
+    queue: [],
+    liveOrders: [],
+    pollInterval: null
 };
 
-// ==========================================
-// 4. CLERK AUTHENTICATION LIFECYCLE
-// ==========================================
 window.addEventListener('load', async () => {
-    try {
-        if (!window.Clerk) throw new Error("Clerk CDN missing.");
-        
-        await window.Clerk.load();
+    await window.Clerk.load();
 
-        if (window.Clerk.user) {
-            window.AppState.user = window.Clerk.user;
-            
-            // Hide login wall, show internal dashboard[cite: 1, 3]
-            document.getElementById('auth-container').style.display = 'none';
-            document.getElementById('dashboard-content').style.display = 'flex';
-            window.Clerk.mountUserButton(document.getElementById('user-button'));
-            
-            // Initialize Router and Live Database Polling
-            Router.init();
-            DatabaseEngine.startLivePolling();
-        } else {
-            // Show login wall
-            document.getElementById('dashboard-content').style.display = 'none';
-            document.getElementById('auth-container').style.display = 'flex';
-            window.Clerk.mountSignIn(document.getElementById('auth-container'));
-        }
-    } catch (error) {
-        console.error("[Auth Error]:", error);
-        window.UI.showToast("Authentication service unavailable.", "error");
+    document.querySelectorAll('.demo-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('demo-modal').classList.remove('hidden');
+        });
+    });
+
+    if (window.Clerk.user) {
+        document.getElementById('landing-view').classList.add('hidden');
+        document.getElementById('dashboard-view').classList.remove('hidden');
+        document.getElementById('dashboard-view').classList.add('flex');
+        window.Clerk.mountUserButton(document.getElementById('user-button'));
+        
+        AppController.init();
+    } else {
+        window.Clerk.mountSignIn(document.getElementById('auth-container'));
     }
 });
 
-// ==========================================
-// 5. COMPONENT ROUTER
-// ==========================================
-const Router = {
+const AppController = {
     init() {
-        const navItems = document.querySelectorAll('.nav-item');
-        
-        navItems.forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.preventDefault();
-                
-                // Update UI active states
-                navItems.forEach(nav => nav.classList.remove('active', 'border-emerald-500', 'bg-emerald-500/10'));
-                item.classList.add('active', 'border-emerald-500', 'bg-emerald-500/10');
-                
-                const route = item.dataset.target || 'orders';
-                this.navigate(route);
-            });
+        this.renderModule();
+        this.startLiveSync();
+    },
+
+    async startLiveSync() {
+        await this.fetchRealOrders();
+        if (this.pollInterval) clearInterval(this.pollInterval);
+        this.pollInterval = setInterval(() => this.fetchRealOrders(), 3000);
+    },
+
+    async fetchRealOrders() {
+        const { data, error } = await _supabase
+            .from('bulk_orders')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (!error) {
+            AppState.liveOrders = data || [];
+            if (AppState.queue.length === 0) this.renderLiveTable();
+        }
+    },
+
+    async syncDatabase() {
+        if (AppState.queue.length === 0) return;
+        const btn = document.getElementById('process-btn');
+        btn.innerText = "Syncing to Database...";
+        btn.disabled = true;
+
+        const { error } = await _supabase.from('bulk_orders').insert(AppState.queue);
+
+        if (error) {
+            alert("Database write failed: " + error.message);
+            btn.innerText = "Retry Synchronization";
+            btn.disabled = false;
+        } else {
+            AppState.queue = [];
+            btn.classList.add('hidden');
+            await this.fetchRealOrders();
+        }
+    },
+
+    renderModule() {
+        const container = document.getElementById('module-container');
+        container.innerHTML = `
+            <div class="glass-card border-2 border-dashed border-white/20 hover:border-gold-500/50 p-12 text-center rounded-2xl mb-8">
+                <h3 class="font-bold text-xl text-white mb-2">Upload Deployment Manifest</h3>
+                <p class="text-slate-400 text-sm mb-6">Format: ASIN, Quantity</p>
+                <input type="file" id="csv-file" accept=".csv" class="mx-auto block text-slate-400 file:bg-gold-500 file:rounded file:border-0 file:px-4 file:py-2 file:text-royal-900 file:font-bold cursor-pointer">
+            </div>
+            <button id="process-btn" class="hidden w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold py-4 rounded-xl mb-12">Synchronize Orders to Cloud Database</button>
+            
+            <div class="glass-card rounded-2xl overflow-hidden border border-white/10">
+                <div class="p-6 border-b border-white/10 bg-black/20 text-white font-bold">Live Fleet Tracking</div>
+                <table class="w-full text-left text-sm text-slate-300">
+                    <thead class="bg-black/40 text-gold-400 uppercase">
+                        <tr><th class="p-4">ASIN</th><th class="p-4">Qty</th><th class="p-4">Status</th></tr>
+                    </thead>
+                    <tbody id="table-body" class="divide-y divide-white/5"></tbody>
+                </table>
+            </div>
+        `;
+
+        document.getElementById('csv-file').addEventListener('change', (e) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const rows = event.target.result.split('\n');
+                AppState.queue = [];
+                for (let i = 1; i < rows.length; i++) {
+                    const cols = rows[i].split(',');
+                    const asin = cols[0] ? cols[0].trim() : '';
+                    if (asin) AppState.queue.push({ asin, quantity: parseInt(cols[1]) || 1, status: 'pending', platform: 'amazon' });
+                }
+                if (AppState.queue.length > 0) {
+                    document.getElementById('process-btn').classList.remove('hidden');
+                    this.renderLiveTable();
+                }
+            };
+            if (e.target.files[0]) reader.readAsText(e.target.files[0]);
         });
 
-        // Default route initialization
-        this.navigate('orders');
+        document.getElementById('process-btn').addEventListener('click', () => this.syncDatabase());
     },
 
-    navigate(route) {
-        window.AppState.activeRoute = route;
-        const mainContainer = document.getElementById('module-container');
-        if (!mainContainer) return;
+    renderLiveTable() {
+        const tbody = document.getElementById('table-body');
+        const data = AppState.queue.length > 0 ? AppState.queue : AppState.liveOrders;
         
-        mainContainer.innerHTML = ''; // Clear previous component
-
-        const moduleWrapper = document.createElement('div');
-        moduleWrapper.className = 'dynamic-module animate-fade-in w-full';
-
-        // Dynamically mount external components based on the file structure
-        try {
-            switch(route) {
-                case 'orders':
-                    if (window.OrderModule) moduleWrapper.appendChild(window.OrderModule.render());
-                    else moduleWrapper.innerHTML = `<p class="text-slate-500 p-8">OrderModule (components/order-module.js) is missing.</p>`;
-                    break;
-                case 'tracking':
-                    if (window.TrackingModule) moduleWrapper.appendChild(window.TrackingModule.render());
-                    break;
-                case 'gst':
-                    if (window.GSTModule) moduleWrapper.appendChild(window.GSTModule.render());
-                    break;
-                case 'otp':
-                    if (window.OTPModule) moduleWrapper.appendChild(window.OTPModule.render());
-                    break;
-                case 'coupons':
-                    if (window.CouponModule) moduleWrapper.appendChild(window.CouponModule.render());
-                    break;
-                case 'refunds':
-                    if (window.RefundModule) moduleWrapper.appendChild(window.RefundModule.render());
-                    break;
-                default:
-                    moduleWrapper.innerHTML = `<div class="p-12 text-center text-slate-500">Module [${route}] is loading...</div>`;
-            }
-        } catch (err) {
-            console.error(`Router failed to load module: ${route}`, err);
-        }
-
-        mainContainer.appendChild(moduleWrapper);
-    }
-};
-
-// ==========================================
-// 6. LIVE POLLING ENGINE
-// ==========================================
-const DatabaseEngine = {
-    interval: null,
-    
-    async fetchAndUpdate() {
-        const newData = await window.SupabaseClient.fetchActiveOrders();
-        
-        // Detect critical OTP interruptions to alert user[cite: 1, 3]
-        const oldOTPs = window.AppState.liveData.filter(o => o.status === 'otp_required').length;
-        const newOTPs = newData.filter(o => o.status === 'otp_required').length;
-        
-        if (newOTPs > oldOTPs) {
-            window.UI.showToast("Critical: Bot paused. Manual OTP intervention required!", "warning");
-        }
-        
-        window.AppState.liveData = newData;
-        
-        // Silently re-render the active module to reflect live DB changes
-        const activeMod = window.AppState.activeRoute;
-        if (['orders', 'tracking', 'otp', 'gst', 'refunds'].includes(activeMod)) {
-            // Prevent input wiping if the user is typing in the AI block or OTP gate
-            const activeInputs = document.querySelectorAll('input:focus');
-            if (activeInputs.length === 0) {
-                Router.navigate(activeMod);
-            }
-        }
-    },
-
-    startLivePolling() {
-        if (this.interval) clearInterval(this.interval);
-        
-        // Initial fetch
-        this.fetchAndUpdate();
-        
-        // Poll every 5 seconds for status updates[cite: 1, 3]
-        this.interval = setInterval(() => {
-            if (window.AppState.queue.length === 0) {
-                this.fetchAndUpdate();
-            }
-        }, 5000);
+        tbody.innerHTML = data.map(order => {
+            let color = order.status === 'completed' ? 'text-emerald-400' : order.status === 'running' ? 'text-blue-400' : 'text-amber-400';
+            return `<tr class="hover:bg-white/5"><td class="p-4 text-white">${order.asin}</td><td class="p-4">${order.quantity}</td><td class="p-4 font-bold ${color}">${order.status.toUpperCase()}</td></tr>`;
+        }).join('');
     }
 };
