@@ -4,8 +4,8 @@
  */
 
 const CONFIG = {
-    SUPABASE_URL: 'https://kjcvmchftyeiccfpiemd.supabase.co',
-    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqY3ZtY2hmdHllaWNjZnBpZW1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMTM2MjcsImV4cCI6MjEwMzU4OTYyN30.m4wUParS14xU7FnAU3y-Eqtxjyvd3rNKFFrP0EL_Chk',
+    SUPABASE_URL: 'https://fsqdpnoygftookrcukdi.supabase.co',
+    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzcWRwbm95Z2Z0b29rcmN1a2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyMDY3MDYsImV4cCI6MjEwMzc4MjcwNn0.GpFEqhJ76N6KC5FDW4IaaZdJLcuCMkx5b787ptscUiU',
     GEMINI_API_KEY: 'AQ.Ab8RN6KRVzMyEYPONgoNoXFUPZWEZY8UUjR-2nSsIZkYdPEYdA', // Insert real key for AI resolution
     POLL_INTERVAL: 4000,
     MAX_BATCH: 500
