@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BulkOrderBuddy | Royal Edition</title>
+    <title>BulkOrderBuddy | Enterprise</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,21 +19,6 @@
                     colors: {
                         royal: { 900: '#0f0c29', 800: '#302b63', 700: '#24243e' },
                         gold: { 300: '#fde047', 400: '#facc15', 500: '#eab308', 600: '#ca8a04' }
-                    },
-                    animation: {
-                        'gradient-x': 'gradient-x 15s ease infinite',
-                        'float': 'float 6s ease-in-out infinite',
-                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    },
-                    keyframes: {
-                        'gradient-x': {
-                            '0%, 100%': { 'background-size': '200% 200%', 'background-position': 'left center' },
-                            '50%': { 'background-size': '200% 200%', 'background-position': 'right center' }
-                        },
-                        'float': {
-                            '0%, 100%': { transform: 'translateY(0)' },
-                            '50%': { transform: 'translateY(-20px)' },
-                        }
                     }
                 }
             }
@@ -43,123 +28,81 @@
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #0f0c29; }
         ::-webkit-scrollbar-thumb { background: #ca8a04; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #facc15; }
         .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
         .glass-panel { background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
-        input:-webkit-autofill { -webkit-box-shadow: 0 0 0 30px #1e1b4b inset !important; -webkit-text-fill-color: white !important; }
-        .gold-text-gradient { background: linear-gradient(to right, #fde047, #ca8a04, #fde047); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-size: 200% auto; animation: gradient-x 5s linear infinite; }
     </style>
 </head>
-<body class="bg-royal-900 text-slate-200 font-sans min-h-screen flex flex-col antialiased selection:bg-gold-500 selection:text-royal-900 relative">
-
-    <div class="fixed inset-0 z-[-1] bg-gradient-to-br from-royal-900 via-royal-800 to-black overflow-hidden animate-gradient-x">
-        <div class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-purple-900/30 blur-[120px] animate-pulse-slow"></div>
-        <div class="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-blue-900/20 blur-[150px]"></div>
-    </div>
+<body class="bg-royal-900 text-slate-200 font-sans min-h-screen flex flex-col antialiased">
 
     <!-- LANDING PAGE VIEW -->
-    <div id="landing-view" class="flex-grow flex flex-col">
-        <nav class="sticky top-0 z-40 glass-card border-b border-white/10 px-6 py-4 transition-all duration-300">
+    <div id="landing-view" class="flex-grow flex flex-col relative z-10">
+        <nav class="glass-card border-b border-white/10 px-6 py-4">
             <div class="max-w-7xl mx-auto flex justify-between items-center">
-                <div class="text-2xl font-serif font-bold flex items-center gap-3 text-white">
-                    <span class="tracking-wider text-gold-400">BulkOrderBuddy</span>
+                <div class="text-2xl font-serif font-bold text-gold-400">BulkOrderBuddy</div>
+            </div>
+        </nav>
+
+        <main class="flex-grow flex items-center py-20 px-6">
+            <div class="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                <div class="space-y-8">
+                    <h1 class="text-5xl md:text-7xl font-serif font-black leading-tight text-white">Rule Your <br><span class="text-gold-500">E-Commerce Empire</span></h1>
+                    <p class="text-lg text-slate-300">Ascend to the throne of modern retail. Deploy your automated bot fleet across Amazon, Flipkart, and Shopsy.</p>
                 </div>
-                <div class="flex items-center gap-4">
-                    <button class="demo-btn px-6 py-2 rounded-full border border-gold-500 text-gold-400 font-semibold hover:bg-gold-500 hover:text-royal-900 transition-all duration-300 shadow-[0_0_15px_rgba(234,179,8,0.2)]">Book a Demo</button>
+
+                <div class="glass-panel rounded-2xl p-8 lg:p-10 w-full max-w-md mx-auto">
+                    <div class="text-center mb-8">
+                        <h2 class="text-2xl font-serif font-bold text-white mb-2">Access Dashboard</h2>
+                        <p class="text-sm text-slate-400">Sign in to your authorized merchant account</p>
+                    </div>
+                    
+                    <!-- NATIVE LOGIN BYPASS -->
+                    <form id="custom-login-form" class="space-y-4">
+                        <div>
+                            <input type="email" id="email" required placeholder="Merchant Email" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white outline-none focus:border-gold-500">
+                        </div>
+                        <div>
+                            <input type="password" required placeholder="Access Code" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white outline-none focus:border-gold-500" value="admin123">
+                        </div>
+                        <button type="submit" id="login-submit-btn" class="w-full bg-gold-500 hover:bg-gold-400 text-royal-900 font-bold py-3 rounded-lg transition-colors mt-4">Authenticate Empire</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- DASHBOARD VIEW -->
+    <div id="dashboard-view" class="hidden flex-grow flex-col relative z-10 min-h-screen bg-royal-900">
+        <nav class="glass-card border-b border-white/10 px-6 py-4 sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="text-2xl font-serif font-bold text-gold-400">BulkOrderBuddy</div>
+                <div class="flex gap-4">
+                    <span id="user-display" class="text-sm text-slate-300 flex items-center"></span>
+                    <button id="logout-btn" class="bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-white px-4 py-1.5 rounded text-sm transition-colors">Disconnect</button>
                 </div>
             </div>
         </nav>
 
-        <main class="flex-grow flex items-center py-20 px-6 relative">
-            <div class="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-                <div class="space-y-8 relative z-10">
-                    <h1 class="text-5xl md:text-7xl font-serif font-black leading-tight text-white">Rule Your <br><span class="gold-text-gradient">E-Commerce Empire</span></h1>
-                    <p class="text-lg md:text-xl text-slate-300 leading-relaxed max-w-xl font-light">Ascend to the throne of modern retail. Deploy your automated bot fleet across Amazon.</p>
+        <div class="max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-4 gap-8 p-6 mt-8">
+            <!-- Navigation Sidebar -->
+            <aside class="md:col-span-1">
+                <div class="glass-panel rounded-xl p-4 space-y-2 sticky top-24">
+                    <p class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-4 ml-2">Command Modules</p>
+                    <button class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-300 hover:bg-white/5 transition-colors font-medium" data-target="orders">🛒 Bulk Ordering</button>
+                    <button class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-300 hover:bg-white/5 transition-colors font-medium" data-target="tracking">🚚 Logistics Tracking</button>
+                    <button class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-300 hover:bg-white/5 transition-colors font-medium" data-target="gst">🧾 GST Invoicing</button>
+                    <button class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-300 hover:bg-white/5 transition-colors font-medium" data-target="otp">🔐 OTP Gate</button>
+                    <button class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-300 hover:bg-white/5 transition-colors font-medium" data-target="coupons">🎟️ Promo Engine</button>
+                    <button class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-300 hover:bg-white/5 transition-colors font-medium" data-target="refunds">💰 Refund Monitor</button>
                 </div>
-
-                <div class="relative w-full max-w-md mx-auto lg:ml-auto animate-float">
-                    <div class="relative glass-panel rounded-2xl p-8 lg:p-10">
-                        <div class="text-center mb-8">
-                            <h2 class="text-2xl font-serif font-bold text-white mb-2">Access Dashboard</h2>
-                            <p class="text-sm text-slate-400">Sign in to your authorized merchant account</p>
-                        </div>
-                        <div id="auth-container" class="flex justify-center"></div>
-                    </div>
-                </div>
-            </div>
-        </main>
-
-        <footer class="border-t border-white/10 mt-auto bg-royal-900/80 backdrop-blur-md pt-16 pb-8 px-6">
-            <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 text-sm mb-12">
-                <div>
-                    <div class="text-xl font-serif font-bold text-white mb-4">BulkOrderBuddy</div>
-                    <p class="text-slate-400">The premiere automation toolkit for modern e-commerce merchants.</p>
-                </div>
-                <div>
-                    <p class="font-bold text-white tracking-widest uppercase mb-4">Legal & Links</p>
-                    <ul class="text-gray-500 space-y-2">
-                        <li><a href="https://yourwebsite.com/terms" class="hover:text-emerald-600 transition-colors">Terms of Service</a></li>
-                        <li><a href="https://yourwebsite.com/privacy" class="hover:text-emerald-600 transition-colors">Privacy Policy</a></li>
-                        <li><a href="https://yourwebsite.com/about" class="hover:text-emerald-600 transition-colors">About Us</a></li>
-                    </ul>
-                </div>
-                <div>
-                    <p class="font-bold text-white tracking-widest uppercase mb-4">Direct Line</p>
-                    <a href="tel:+919873024343" class="text-gray-500 hover:text-emerald-600 flex items-center gap-2 transition-colors">📞 +91 98730 24343</a>
-                </div>
-            </div>
-        </footer>
-    </div>
-
-    <!-- DEMO MODAL -->
-    <div id="demo-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
-        <div class="bg-white rounded-xl p-8 max-w-[420px] w-full shadow-2xl relative">
-            <button id="close-modal-btn" onclick="document.getElementById('demo-modal').classList.add('hidden')" class="absolute top-5 right-5 text-gray-400 hover:text-gray-900 transition-colors">✕</button>
-            <h3 class="font-bold text-2xl text-gray-900 mb-1">Book a Demo</h3>
-            <p class="text-sm text-gray-500 mb-8">Contact us to schedule a demo</p>
-            <div class="border border-gray-200 rounded-lg p-5 flex items-center gap-4 bg-gray-50">
-                <span class="text-2xl">📞</span>
-                <div>
-                    <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">Phone Number</p>
-                    <a href="tel:+919873024343" class="font-bold text-gray-900 text-lg hover:text-emerald-600 transition-colors block">+91 98730 24343</a>
-                </div>
-            </div>
+            </aside>
+            
+            <!-- Dynamic Content Area -->
+            <main class="md:col-span-3">
+                <div id="module-container"></div>
+            </main>
         </div>
     </div>
 
-    <!-- DASHBOARD VIEW -->
-    <div id="dashboard-view" class="hidden flex-grow flex-col relative z-10 px-6 py-10">
-        <div class="max-w-7xl mx-auto w-full">
-            <div class="glass-card rounded-2xl p-6 flex justify-between items-center mb-8 border-gold-500/20">
-                <div>
-                    <h2 class="text-3xl font-serif font-bold text-white mb-1">Imperial Command Center</h2>
-                    <p class="text-gold-400 text-sm">System Connected to Supabase Queue</p>
-                </div>
-                <div id="user-button"></div>
-            </div>
-            <div id="module-container"></div>
-        </div>
-    </div>
-
-   <!-- 1. Cloud Database CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<!-- 2. Core Backend Utilities -->
-<script src="lib/csv-parser.js"></script>
-
-<!-- 3. Modular UI Renderers -->
-<script src="components/order-module.js"></script>
-<script src="components/tracking-module.js"></script>
-<script src="components/gst-module.js"></script>
-<script src="components/otp-module.js"></script>
-<script src="components/coupon-module.js"></script>
-<script src="components/refund-module.js"></script>
-
-<!-- 4. Master SPA Controller -->
-<!-- Master SPA Controller -->
     <script src="dashboard.js"></script>
-
-    <!-- Clerk Authentication -->
-    <script async crossorigin="anonymous" data-clerk-publishable-key="pk_test_ZGVlcC1nbG93d29ybS02ODYwLmNsZXJrLmFjY291bnRzLmRldiQ" src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"></script>
 </body>
 </html>
