@@ -1,16 +1,15 @@
 /**
  * BulkOrderBuddy Enterprise Edition - Master Dashboard Controller
- * 100% Real Data Integration: No mock values, no randomizers.
+ * Includes fail-safe extension credential broadcasting.
  */
 
 const CONFIG = {
     SUPABASE_URL: 'https://fsqdpnoygftookrcukdi.supabase.co',
-    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzcWRwbm95Z2Z0b29rcmN1a2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyMDY3MDYsImV4cCI6MjEwMzc4MjcwNn0.GpFEqhJ76N6KC5FDW4IaaZdJLcuCMkx5b787ptscUiU',
-    GEMINI_API_KEY: 'AQ.Ab8RN6KRVzMyEYPONgoNoXFUPZWEZY8UUjR-2nSsIZkYdPEYdA', // Insert real key for AI resolution
+    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzcWRwbm95Z2Z0b29rcmN1a2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMTM2MjcsImV4cCI6MjEwMzU4OTYyN30.GpFEqhJ76N6KC5FDW4IaaZdJLCuCMkx5b787ptscUiU',
+    GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY', 
     POLL_INTERVAL: 4000,
     MAX_BATCH: 500
 };
-
 
 const AppState = {
     user: null,
@@ -50,7 +49,7 @@ const Utils = {
 };
 
 // ==========================================
-// 2. NATIVE AUTHENTICATION (BYPASSING CLERK)
+// 2. NATIVE AUTHENTICATION 
 // ==========================================
 window.addEventListener('DOMContentLoaded', () => {
     const savedUser = localStorage.getItem('bob_session');
@@ -95,7 +94,7 @@ function activateDashboard() {
     const userDisplay = document.getElementById('user-display');
     if (userDisplay) userDisplay.innerText = `Admin: ${AppState.user.email}`;
     
-    // Broadcast keys to Chrome Extension Bridge dynamically
+    // Initial broadcast to Extension Bridge
     document.dispatchEvent(new CustomEvent('SyncBotCredentials', {
         detail: { url: CONFIG.SUPABASE_URL, key: CONFIG.SUPABASE_ANON_KEY }
     }));
@@ -124,14 +123,14 @@ const Database = {
     async pushQueue(queueArray) {
         const enrichedQueue = queueArray.map(item => ({
             ...item,
-            user_id: AppState.user.id,
+            user_id: AppState.user?.id || 'admin_override',
             platform: Utils.determinePlatform(item.asin),
             status: 'pending',
             tracking_status: 'unfulfilled',
             refund_status: 'none',
             taxable_value: 0, 
             gst_amount: 0,
-            coupon_code: AppState.globalCoupon || item.coupon_code,
+            coupon_code: AppState.globalCoupon || item.coupon_code || null,
             supercoins_enabled: AppState.useSuperCoins,
             created_at: new Date().toISOString()
         }));
@@ -181,6 +180,8 @@ const CSVManager = {
         const reader = new FileReader();
         reader.onload = (event) => this.parse(event.target.result);
         reader.readAsText(file);
+        // Clear input to allow re-uploading the same file
+        e.target.value = '';
     },
     parse(text) {
         const rows = text.split('\n');
@@ -204,7 +205,7 @@ const CSVManager = {
 };
 
 // ==========================================
-// 6. MODULE: ORDERS (BULK & AI)
+// 6. MODULE: ORDERS 
 // ==========================================
 const OrderModule = {
     render() {
@@ -329,7 +330,6 @@ const TrackingModule = {
         wrapper.innerHTML = `
             <div class="glass-panel rounded-xl overflow-hidden border border-white/10">
                 <div class="p-5 border-b border-white/10 bg-black/20"><h3 class="font-bold text-white flex items-center gap-2">🚚 Logistics Tracker</h3></div>
-                
                 <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
                         <p class="text-slate-400 text-xs uppercase mb-1">In Transit</p>
@@ -344,7 +344,6 @@ const TrackingModule = {
                         <p class="text-3xl font-bold text-emerald-400">${delivered}</p>
                     </div>
                 </div>
-                
                 <table class="w-full text-left border-collapse border-t border-white/10">
                     <thead class="bg-slate-800/50 text-slate-300 text-xs uppercase tracking-wider">
                         <tr><th class="p-4">ASIN</th><th class="p-4">Platform</th><th class="p-4">AWB ID</th><th class="p-4">Live Status</th></tr>
@@ -368,7 +367,7 @@ const TrackingModule = {
 };
 
 // ==========================================
-// 8. MODULE: GST INVOICING (REAL DATA)
+// 8. MODULE: GST INVOICING
 // ==========================================
 const GSTModule = {
     render() {
@@ -388,7 +387,6 @@ const GSTModule = {
                     <tbody class="divide-y divide-white/5 text-sm">
                         ${completed.length === 0 ? `<tr><td colspan="5" class="p-8 text-center text-slate-500">No completed orders pending GST.</td></tr>` : 
                         completed.map(o => {
-                            // Strictly pulling from real database values
                             const val = parseFloat(o.taxable_value);
                             const gst = parseFloat(o.gst_amount);
                             const isPending = isNaN(val) || val === 0;
@@ -660,6 +658,11 @@ const AppController = {
             btn.innerHTML = `<span class="animate-pulse">Pushing to Supabase...</span>`;
             btn.disabled = true;
         }
+
+        // CRITICAL: Fail-safe credential rebroadcast to the extension right before push
+        document.dispatchEvent(new CustomEvent('SyncBotCredentials', {
+            detail: { url: CONFIG.SUPABASE_URL, key: CONFIG.SUPABASE_ANON_KEY }
+        }));
 
         const success = await Database.pushQueue(AppState.queue);
         if (success) {
