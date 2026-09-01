@@ -1,12 +1,12 @@
 /**
  * BulkOrderBuddy Enterprise Edition - Master Dashboard Controller
- * Full 600+ line integration with Real Supabase Data, AI, and Auth Bypass.
+ * 100% Real Data Integration: No mock values, no randomizers.
  */
 
 const CONFIG = {
-    SUPABASE_URL: 'https://fsqdpnoygftookrcukdi.supabase.co',
-    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzcWRwbm95Z2Z0b29rcmN1a2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyMDY3MDYsImV4cCI6MjEwMzc4MjcwNn0.GpFEqhJ76N6KC5FDW4IaaZdJLcuCMkx5b787ptscUiU',
-    GEMINI_API_KEY: 'AQ.Ab8RN6KRVzMyEYPONgoNoXFUPZWEZY8UUjR-2nSsIZkYdPEYdA', // Insert real key for AI resolution
+    SUPABASE_URL: 'https://fsqdpnoygftookrcukdi.supabase.co', // Your active project URL
+    SUPABASE_ANON_KEY: 'YOUR_NEW_ANON_KEY', // Replace with your active anon key
+    GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY', // Required for AI Order Placement
     POLL_INTERVAL: 4000,
     MAX_BATCH: 500
 };
@@ -84,14 +84,17 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 function activateDashboard() {
-    document.getElementById('landing-view').classList.add('hidden');
+    document.getElementById('landing-view')?.classList.add('hidden');
     const dbView = document.getElementById('dashboard-view');
-    dbView.classList.remove('hidden');
-    dbView.classList.add('flex');
+    if (dbView) {
+        dbView.classList.remove('hidden');
+        dbView.classList.add('flex');
+    }
     
-    document.getElementById('user-display').innerText = `Admin: ${AppState.user.email}`;
+    const userDisplay = document.getElementById('user-display');
+    if (userDisplay) userDisplay.innerText = `Admin: ${AppState.user.email}`;
     
-    // NEW ADDITION: Silently beam the active keys to the Chrome Extension
+    // Broadcast keys to Chrome Extension Bridge dynamically
     document.dispatchEvent(new CustomEvent('SyncBotCredentials', {
         detail: { url: CONFIG.SUPABASE_URL, key: CONFIG.SUPABASE_ANON_KEY }
     }));
@@ -152,7 +155,7 @@ const Database = {
 const GeminiAI = {
     async extractASIN(query) {
         try {
-            const prompt = `Extract ONLY the 10-character Amazon ASIN, or Flipkart Product ID from this. Return ONLY the ID. Input: ${query}`;
+            const prompt = `Extract ONLY the 10-character Amazon ASIN, or Flipkart Product ID from this input. Return ONLY the ID. Input: ${query}`;
             const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -166,69 +169,7 @@ const GeminiAI = {
         }
     }
 };
-// ==========================================
-// NEW MODULE: PAYMENT VAULT
-// ==========================================
-const WalletModule = {
-    render() {
-        const wrapper = document.createElement('div');
-        const savedCards = JSON.parse(localStorage.getItem('bob_wallet') || '[]');
-        
-        // Generate 4 Card Slots
-        let slotsHTML = '';
-        for(let i = 0; i < 4; i++) {
-            const card = savedCards[i] || { last4: '', cvv: '', bank: '' };
-            slotsHTML += `
-                <div class="bg-slate-800 border border-slate-700 rounded-lg p-5">
-                    <p class="text-white font-bold mb-3">Payment Card ${i + 1}</p>
-                    <div class="space-y-3">
-                        <input type="text" id="bank-${i}" value="${card.bank}" placeholder="Bank Name (e.g. HDFC)" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold-500">
-                        <div class="flex gap-3">
-                            <input type="text" id="last4-${i}" value="${card.last4}" maxlength="4" placeholder="Last 4 Digits" class="flex-1 bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold-500">
-                            <input type="password" id="cvv-${i}" value="${card.cvv}" maxlength="4" placeholder="CVV" class="w-20 bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold-500">
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
 
-        wrapper.innerHTML = `
-            <div class="glass-panel rounded-xl overflow-hidden border border-white/10">
-                <div class="p-5 border-b border-white/10 bg-black/20 flex justify-between items-center">
-                    <h3 class="font-bold text-white">💳 Payment Vault (Auto-Fill)</h3>
-                    <button id="save-wallet" class="bg-gold-500 hover:bg-gold-400 text-royal-900 px-4 py-2 rounded font-bold text-sm transition-colors">Sync to Bot</button>
-                </div>
-                <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    ${slotsHTML}
-                </div>
-            </div>
-        `;
-
-        setTimeout(() => this.bindEvents(wrapper), 0);
-        return wrapper;
-    },
-
-    bindEvents(wrapper) {
-        wrapper.querySelector('#save-wallet').addEventListener('click', () => {
-            const cards = [];
-            for(let i = 0; i < 4; i++) {
-                cards.push({
-                    bank: wrapper.querySelector(`#bank-${i}`).value.trim(),
-                    last4: wrapper.querySelector(`#last4-${i}`).value.trim(),
-                    cvv: wrapper.querySelector(`#cvv-${i}`).value.trim()
-                });
-            }
-            
-            // Save locally
-            localStorage.setItem('bob_wallet', JSON.stringify(cards));
-            
-            // Beam to the Chrome Extension Bridge
-            document.dispatchEvent(new CustomEvent('SyncWalletCards', { detail: { cards: cards } }));
-            
-            Utils.showToast("Payment Vault synchronized to extension.", "success");
-        });
-    }
-};
 // ==========================================
 // 5. CSV MANAGER
 // ==========================================
@@ -270,10 +211,10 @@ const OrderModule = {
         
         wrapper.innerHTML = `
             <div class="glass-panel border-2 border-purple-500/30 rounded-xl p-8 mb-8">
-                <h3 class="text-lg font-bold text-white mb-2">🤖 AI Smart Order Placement</h3>
+                <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2">🤖 AI Smart Order Placement</h3>
                 <p class="text-xs text-slate-400 mb-4">Paste a raw product URL or exact product name. AI extracts the correct ASIN/Product ID.</p>
                 <div class="flex gap-3">
-                    <input type="text" id="ai-input" placeholder="https://amazon.in/dp/B08L5WHFT9" class="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white outline-none focus:border-purple-500">
+                    <input type="text" id="ai-input" placeholder="https://www.amazon.in/dp/B08L5WHFT9" class="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white outline-none focus:border-purple-500">
                     <input type="number" id="ai-qty" value="1" min="1" class="w-24 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white outline-none">
                     <button id="ai-btn" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-6 py-3 rounded-lg transition-colors">Resolve</button>
                 </div>
@@ -356,6 +297,7 @@ const OrderModule = {
             else if (status.includes('pending')) style = 'bg-blue-900/40 text-blue-400 border border-blue-500/30';
             else if (status === 'running') style = 'bg-amber-900/40 text-amber-400 border border-amber-500/30';
             else if (status === 'otp_required') style = 'bg-purple-900/40 text-purple-400 border border-purple-500/30';
+            else if (status === 'failed') style = 'bg-red-900/40 text-red-400 border border-red-500/30';
 
             const platform = order.platform || Utils.determinePlatform(order.asin);
 
@@ -385,7 +327,7 @@ const TrackingModule = {
 
         wrapper.innerHTML = `
             <div class="glass-panel rounded-xl overflow-hidden border border-white/10">
-                <div class="p-5 border-b border-white/10 bg-black/20"><h3 class="font-bold text-white">🚚 Logistics Tracker</h3></div>
+                <div class="p-5 border-b border-white/10 bg-black/20"><h3 class="font-bold text-white flex items-center gap-2">🚚 Logistics Tracker</h3></div>
                 
                 <div class="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
@@ -404,16 +346,16 @@ const TrackingModule = {
                 
                 <table class="w-full text-left border-collapse border-t border-white/10">
                     <thead class="bg-slate-800/50 text-slate-300 text-xs uppercase tracking-wider">
-                        <tr><th class="p-4">ASIN</th><th class="p-4">Courier</th><th class="p-4">AWB ID</th><th class="p-4">Status</th></tr>
+                        <tr><th class="p-4">ASIN</th><th class="p-4">Platform</th><th class="p-4">AWB ID</th><th class="p-4">Live Status</th></tr>
                     </thead>
                     <tbody class="divide-y divide-white/5 text-sm">
-                        ${validOrders.length === 0 ? `<tr><td colspan="4" class="p-8 text-center text-slate-500">No shipped orders found.</td></tr>` : 
+                        ${validOrders.length === 0 ? `<tr><td colspan="4" class="p-8 text-center text-slate-500">No fulfilled orders mapped in database.</td></tr>` : 
                         validOrders.map(o => `
                             <tr class="hover:bg-white/5">
                                 <td class="p-4 text-white font-mono">${o.asin}</td>
-                                <td class="p-4 text-slate-300">${o.awb_number ? (o.platform==='amazon'?'Amazon Logistics':'Ecom Express') : 'Awaiting Details'}</td>
-                                <td class="p-4 text-blue-400 font-mono">${o.awb_number || 'PENDING'}</td>
-                                <td class="p-4"><span class="bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs">${(o.tracking_status||'processing').toUpperCase()}</span></td>
+                                <td class="p-4 text-slate-300 capitalize">${o.platform}</td>
+                                <td class="p-4 text-blue-400 font-mono">${o.awb_number || 'AWAITING UPDATE'}</td>
+                                <td class="p-4"><span class="bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs">${(o.tracking_status || 'unfulfilled').toUpperCase()}</span></td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -425,7 +367,7 @@ const TrackingModule = {
 };
 
 // ==========================================
-// 8. MODULE: GST INVOICING
+// 8. MODULE: GST INVOICING (REAL DATA)
 // ==========================================
 const GSTModule = {
     render() {
@@ -435,25 +377,28 @@ const GSTModule = {
         wrapper.innerHTML = `
             <div class="glass-panel rounded-xl overflow-hidden border border-white/10">
                 <div class="p-5 border-b border-white/10 bg-black/20 flex justify-between">
-                    <h3 class="font-bold text-white">🧾 B2B GST Invoicing</h3>
+                    <h3 class="font-bold text-white flex items-center gap-2">🧾 GST Invoicing</h3>
                     <button class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-4 py-2 rounded">Export Register</button>
                 </div>
                 <table class="w-full text-left border-collapse">
                     <thead class="bg-slate-800/50 text-slate-300 text-xs uppercase tracking-wider">
-                        <tr><th class="p-4">Order Ref</th><th class="p-4">ASIN</th><th class="p-4">Taxable</th><th class="p-4">GST (18%)</th><th class="p-4">Action</th></tr>
+                        <tr><th class="p-4">Order Ref</th><th class="p-4">ASIN</th><th class="p-4">Taxable Value</th><th class="p-4">GST (18%)</th><th class="p-4">Action</th></tr>
                     </thead>
                     <tbody class="divide-y divide-white/5 text-sm">
-                        ${completed.length === 0 ? `<tr><td colspan="5" class="p-8 text-center text-slate-500">No completed orders.</td></tr>` : 
+                        ${completed.length === 0 ? `<tr><td colspan="5" class="p-8 text-center text-slate-500">No completed orders pending GST.</td></tr>` : 
                         completed.map(o => {
-                            const val = o.taxable_value || Math.floor(Math.random() * 5000) + 500;
-                            const gst = o.gst_amount || (val * 0.18).toFixed(2);
+                            // Strictly pulling from real database values
+                            const val = parseFloat(o.taxable_value);
+                            const gst = parseFloat(o.gst_amount);
+                            const isPending = isNaN(val) || val === 0;
+
                             return `
                                 <tr class="hover:bg-white/5">
-                                    <td class="p-4 text-slate-400 font-mono text-xs uppercase">${o.id.substring(0,8)}</td>
+                                    <td class="p-4 text-slate-400 font-mono text-xs uppercase">${o.id.toString().substring(0,8)}</td>
                                     <td class="p-4 text-white font-mono">${o.asin}</td>
-                                    <td class="p-4 text-slate-300">${Utils.formatCurrency(val)}</td>
-                                    <td class="p-4 text-amber-400">${Utils.formatCurrency(gst)}</td>
-                                    <td class="p-4"><button class="text-blue-400 underline text-xs">PDF</button></td>
+                                    <td class="p-4 text-slate-300">${isPending ? 'Syncing...' : Utils.formatCurrency(val)}</td>
+                                    <td class="p-4 text-amber-400">${isPending ? 'Syncing...' : Utils.formatCurrency(gst)}</td>
+                                    <td class="p-4"><button class="${isPending ? 'text-slate-500 cursor-not-allowed' : 'text-blue-400 hover:underline'} text-xs">PDF</button></td>
                                 </tr>
                             `;
                         }).join('')}
@@ -475,17 +420,17 @@ const OTPModule = {
 
         wrapper.innerHTML = `
             <div class="glass-panel rounded-xl overflow-hidden border border-purple-500/30">
-                <div class="p-5 border-b border-white/10 bg-purple-900/20"><h3 class="font-bold text-white">🔐 Manual Intervention Gate</h3></div>
-                ${otpOrders.length === 0 ? `<div class="p-12 text-center text-slate-500">No active OTP blocks.</div>` : 
+                <div class="p-5 border-b border-white/10 bg-purple-900/20"><h3 class="font-bold text-white flex items-center gap-2">🔐 OTP Gate</h3></div>
+                ${otpOrders.length === 0 ? `<div class="p-12 text-center text-slate-500">No active OTP blocks in database. Bot fleet running securely.</div>` : 
                 `<div class="p-6 grid gap-4">
                     ${otpOrders.map(o => `
                         <div class="bg-slate-800 border border-purple-500/40 rounded-lg p-5 flex justify-between items-center">
                             <div>
                                 <p class="text-white font-bold mb-1">Auth Required: ${o.platform.toUpperCase()}</p>
-                                <p class="text-sm text-slate-400">ASIN: <span class="font-mono">${o.asin}</span> | Bot paused.</p>
+                                <p class="text-sm text-slate-400">ASIN: <span class="font-mono">${o.asin}</span> | Execution paused.</p>
                             </div>
                             <div class="flex gap-3">
-                                <input type="text" id="otp-${o.id}" placeholder="OTP..." class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white">
+                                <input type="text" id="otp-${o.id}" placeholder="Enter OTP..." class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white">
                                 <button class="otp-submit bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2 rounded" data-id="${o.id}">Submit</button>
                             </div>
                         </div>
@@ -509,7 +454,7 @@ const OTPModule = {
 
                 const success = await Database.updateOrder(id, { status: 'running', otp_code: val });
                 if (success) {
-                    Utils.showToast("OTP Sent. Resuming.", "success");
+                    Utils.showToast("OTP pushed to Cloud. Bot resuming.", "success");
                     AppController.fetchLive();
                 }
             });
@@ -518,20 +463,20 @@ const OTPModule = {
 };
 
 // ==========================================
-// 10. MODULE: COUPONS
+// 10. MODULE: PROMO ENGINE
 // ==========================================
 const CouponModule = {
     render() {
         const wrapper = document.createElement('div');
         wrapper.innerHTML = `
             <div class="glass-panel rounded-xl overflow-hidden border border-white/10">
-                <div class="p-5 border-b border-white/10 bg-black/20"><h3 class="font-bold text-white">🎟️ Promo Engine</h3></div>
+                <div class="p-5 border-b border-white/10 bg-black/20"><h3 class="font-bold text-white flex items-center gap-2">🎟️ Promo Engine</h3></div>
                 <div class="p-6 space-y-4">
                     <div class="bg-slate-800 border border-slate-700 rounded-lg p-5">
-                        <label class="block text-sm font-bold text-white mb-2">Global Coupon Code</label>
+                        <label class="block text-sm font-bold text-white mb-2">Global Injection Code</label>
                         <div class="flex gap-3">
-                            <input type="text" id="global-coupon" value="${AppState.globalCoupon}" placeholder="SAVE20" class="flex-1 bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white">
-                            <button id="save-coupon" class="bg-blue-600 text-white px-4 py-2 rounded font-bold">Apply</button>
+                            <input type="text" id="global-coupon" value="${AppState.globalCoupon}" placeholder="e.g. SAVE20" class="flex-1 bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white outline-none focus:border-gold-500">
+                            <button id="save-coupon" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold">Apply to Future Manifests</button>
                         </div>
                     </div>
                 </div>
@@ -540,7 +485,7 @@ const CouponModule = {
         setTimeout(() => {
             wrapper.querySelector('#save-coupon').addEventListener('click', () => {
                 AppState.globalCoupon = wrapper.querySelector('#global-coupon').value.trim();
-                Utils.showToast("Rule updated.", "success");
+                Utils.showToast("Global discount rule saved.", "success");
             });
         }, 0);
         return wrapper;
@@ -548,19 +493,20 @@ const CouponModule = {
 };
 
 // ==========================================
-// 11. MODULE: REFUNDS
+// 11. MODULE: REFUND MONITOR
 // ==========================================
 const RefundModule = {
     render() {
         const wrapper = document.createElement('div');
         const refunds = AppState.liveOrders.filter(o => o.refund_status && o.refund_status !== 'none');
+        
         wrapper.innerHTML = `
             <div class="glass-panel rounded-xl overflow-hidden border border-white/10">
-                <div class="p-5 border-b border-white/10 bg-black/20"><h3 class="font-bold text-white">💰 Refund Monitor</h3></div>
-                ${refunds.length === 0 ? `<div class="p-12 text-center text-slate-500">No active returns.</div>` : 
+                <div class="p-5 border-b border-white/10 bg-black/20"><h3 class="font-bold text-white flex items-center gap-2">💰 Refund Monitor</h3></div>
+                ${refunds.length === 0 ? `<div class="p-12 text-center text-slate-500">Database shows no active return requests.</div>` : 
                 `<table class="w-full text-left border-collapse">
-                    <thead class="bg-slate-800/50 text-slate-300 text-xs uppercase">
-                        <tr><th class="p-4">ASIN</th><th class="p-4">Platform</th><th class="p-4">Status</th></tr>
+                    <thead class="bg-slate-800/50 text-slate-300 text-xs uppercase tracking-wider">
+                        <tr><th class="p-4">ASIN</th><th class="p-4">Platform</th><th class="p-4">Cloud Status</th></tr>
                     </thead>
                     <tbody class="divide-y divide-white/5 text-sm">
                         ${refunds.map(o => `
@@ -579,14 +525,74 @@ const RefundModule = {
 };
 
 // ==========================================
-// 12. MASTER APP ROUTER
+// 12. MODULE: PAYMENT VAULT (AUTO-FILL)
+// ==========================================
+const WalletModule = {
+    render() {
+        const wrapper = document.createElement('div');
+        const savedCards = JSON.parse(localStorage.getItem('bob_wallet') || '[]');
+        
+        let slotsHTML = '';
+        for(let i = 0; i < 4; i++) {
+            const card = savedCards[i] || { last4: '', cvv: '', bank: '' };
+            slotsHTML += `
+                <div class="bg-slate-800 border border-slate-700 rounded-lg p-5">
+                    <p class="text-white font-bold mb-3 text-sm">Linked Card ${i + 1}</p>
+                    <div class="space-y-3">
+                        <input type="text" id="bank-${i}" value="${card.bank}" placeholder="Issuer (e.g. HDFC)" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold-500 transition-colors">
+                        <div class="flex gap-3">
+                            <input type="text" id="last4-${i}" value="${card.last4}" maxlength="4" placeholder="Last 4" class="flex-1 bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold-500 text-center font-mono transition-colors">
+                            <input type="password" id="cvv-${i}" value="${card.cvv}" maxlength="4" placeholder="CVV" class="w-20 bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold-500 text-center font-mono transition-colors">
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        wrapper.innerHTML = `
+            <div class="glass-panel rounded-xl overflow-hidden border border-white/10">
+                <div class="p-5 border-b border-white/10 bg-black/20 flex justify-between items-center">
+                    <h3 class="font-bold text-white flex items-center gap-2">💳 Payment Vault</h3>
+                    <button id="save-wallet" class="bg-gold-500 hover:bg-gold-400 text-royal-900 px-4 py-2 rounded font-bold text-sm transition-colors shadow-lg shadow-gold-500/20">Sync Cards to Extension</button>
+                </div>
+                <div class="p-6">
+                    <p class="text-sm text-slate-400 mb-6">Enter details matching existing saved cards on target platforms to enable autonomous checkout completion.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        ${slotsHTML}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        setTimeout(() => this.bindEvents(wrapper), 0);
+        return wrapper;
+    },
+
+    bindEvents(wrapper) {
+        wrapper.querySelector('#save-wallet').addEventListener('click', () => {
+            const cards = [];
+            for(let i = 0; i < 4; i++) {
+                cards.push({
+                    bank: wrapper.querySelector(`#bank-${i}`).value.trim(),
+                    last4: wrapper.querySelector(`#last4-${i}`).value.trim(),
+                    cvv: wrapper.querySelector(`#cvv-${i}`).value.trim()
+                });
+            }
+            localStorage.setItem('bob_wallet', JSON.stringify(cards));
+            document.dispatchEvent(new CustomEvent('SyncWalletCards', { detail: { cards: cards } }));
+            Utils.showToast("Payment Vault actively synced to execution bot.", "success");
+        });
+    }
+};
+
+// ==========================================
+// 13. MASTER APP ROUTER
 // ==========================================
 const AppController = {
     init() {
         this.bindNav();
         this.startPolling();
         
-        // Default to Orders tab on start
         const ordersTab = document.querySelector('[data-target="orders"]');
         if (ordersTab) ordersTab.classList.add('bg-gold-500/10', 'text-gold-400', 'border-l-4', 'border-gold-500');
         this.renderActiveTab();
@@ -620,7 +626,7 @@ const AppController = {
             case 'otp': mod = OTPModule.render(); break;
             case 'coupons': mod = CouponModule.render(); break;
             case 'refunds': mod = RefundModule.render(); break;
-            case 'wallet': mod = WalletModule.render(); break; // <-- ADD THIS LINE
+            case 'wallet': mod = WalletModule.render(); break;
             default: mod = OrderModule.render();
         }
         container.appendChild(mod);
@@ -650,18 +656,18 @@ const AppController = {
         if (AppState.queue.length === 0) return;
         const btn = document.getElementById('sync-btn');
         if (btn) {
-            btn.innerHTML = `Syncing...`;
+            btn.innerHTML = `<span class="animate-pulse">Pushing to Supabase...</span>`;
             btn.disabled = true;
         }
 
         const success = await Database.pushQueue(AppState.queue);
         if (success) {
-            Utils.showToast("Orders Synced.", "success");
+            Utils.showToast("Database Write Successful.", "success");
             AppState.queue = [];
             this.fetchLive();
         } else {
             if (btn) {
-                btn.innerText = "Retry";
+                btn.innerText = "Retry Synchronization";
                 btn.disabled = false;
             }
         }
