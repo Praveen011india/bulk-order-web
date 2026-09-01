@@ -90,6 +90,12 @@ function activateDashboard() {
     dbView.classList.add('flex');
     
     document.getElementById('user-display').innerText = `Admin: ${AppState.user.email}`;
+    
+    // NEW ADDITION: Silently beam the active keys to the Chrome Extension
+    document.dispatchEvent(new CustomEvent('SyncBotCredentials', {
+        detail: { url: CONFIG.SUPABASE_URL, key: CONFIG.SUPABASE_ANON_KEY }
+    }));
+
     AppController.init();
 }
 
@@ -160,7 +166,69 @@ const GeminiAI = {
         }
     }
 };
+// ==========================================
+// NEW MODULE: PAYMENT VAULT
+// ==========================================
+const WalletModule = {
+    render() {
+        const wrapper = document.createElement('div');
+        const savedCards = JSON.parse(localStorage.getItem('bob_wallet') || '[]');
+        
+        // Generate 4 Card Slots
+        let slotsHTML = '';
+        for(let i = 0; i < 4; i++) {
+            const card = savedCards[i] || { last4: '', cvv: '', bank: '' };
+            slotsHTML += `
+                <div class="bg-slate-800 border border-slate-700 rounded-lg p-5">
+                    <p class="text-white font-bold mb-3">Payment Card ${i + 1}</p>
+                    <div class="space-y-3">
+                        <input type="text" id="bank-${i}" value="${card.bank}" placeholder="Bank Name (e.g. HDFC)" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold-500">
+                        <div class="flex gap-3">
+                            <input type="text" id="last4-${i}" value="${card.last4}" maxlength="4" placeholder="Last 4 Digits" class="flex-1 bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold-500">
+                            <input type="password" id="cvv-${i}" value="${card.cvv}" maxlength="4" placeholder="CVV" class="w-20 bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white text-sm outline-none focus:border-gold-500">
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
 
+        wrapper.innerHTML = `
+            <div class="glass-panel rounded-xl overflow-hidden border border-white/10">
+                <div class="p-5 border-b border-white/10 bg-black/20 flex justify-between items-center">
+                    <h3 class="font-bold text-white">💳 Payment Vault (Auto-Fill)</h3>
+                    <button id="save-wallet" class="bg-gold-500 hover:bg-gold-400 text-royal-900 px-4 py-2 rounded font-bold text-sm transition-colors">Sync to Bot</button>
+                </div>
+                <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    ${slotsHTML}
+                </div>
+            </div>
+        `;
+
+        setTimeout(() => this.bindEvents(wrapper), 0);
+        return wrapper;
+    },
+
+    bindEvents(wrapper) {
+        wrapper.querySelector('#save-wallet').addEventListener('click', () => {
+            const cards = [];
+            for(let i = 0; i < 4; i++) {
+                cards.push({
+                    bank: wrapper.querySelector(`#bank-${i}`).value.trim(),
+                    last4: wrapper.querySelector(`#last4-${i}`).value.trim(),
+                    cvv: wrapper.querySelector(`#cvv-${i}`).value.trim()
+                });
+            }
+            
+            // Save locally
+            localStorage.setItem('bob_wallet', JSON.stringify(cards));
+            
+            // Beam to the Chrome Extension Bridge
+            document.dispatchEvent(new CustomEvent('SyncWalletCards', { detail: { cards: cards } }));
+            
+            Utils.showToast("Payment Vault synchronized to extension.", "success");
+        });
+    }
+};
 // ==========================================
 // 5. CSV MANAGER
 // ==========================================
@@ -552,6 +620,7 @@ const AppController = {
             case 'otp': mod = OTPModule.render(); break;
             case 'coupons': mod = CouponModule.render(); break;
             case 'refunds': mod = RefundModule.render(); break;
+            case 'wallet': mod = WalletModule.render(); break; // <-- ADD THIS LINE
             default: mod = OrderModule.render();
         }
         container.appendChild(mod);
