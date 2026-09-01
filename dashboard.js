@@ -4,12 +4,13 @@
  */
 
 const CONFIG = {
-    SUPABASE_URL: 'https://fsqdpnoygftookrcukdi.supabase.co', // Your active project URL
-    SUPABASE_ANON_KEY: 'YOUR_NEW_ANON_KEY', // Replace with your active anon key
-    GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY', // Required for AI Order Placement
+    SUPABASE_URL: 'https://fsqdpnoygftookrcukdi.supabase.co',
+    SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzcWRwbm95Z2Z0b29rcmN1a2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyMDY3MDYsImV4cCI6MjEwMzc4MjcwNn0.GpFEqhJ76N6KC5FDW4IaaZdJLcuCMkx5b787ptscUiU',
+    GEMINI_API_KEY: 'AQ.Ab8RN6KRVzMyEYPONgoNoXFUPZWEZY8UUjR-2nSsIZkYdPEYdA', // Insert real key for AI resolution
     POLL_INTERVAL: 4000,
     MAX_BATCH: 500
 };
+
 
 const AppState = {
     user: null,
