@@ -6,7 +6,7 @@
 const CONFIG = {
     SUPABASE_URL: 'https://kjcvmchftyeiccfpiemd.supabase.co',
     SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtqY3ZtY2hmdHllaWNjZnBpZW1kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMTM2MjcsImV4cCI6MjEwMzU4OTYyN30.m4wUParS14xU7FnAU3y-Eqtxjyvd3rNKFFrP0EL_Chk',
-    GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY', // Insert real key for AI resolution
+    GEMINI_API_KEY: 'AQ.Ab8RN6KRVzMyEYPONgoNoXFUPZWEZY8UUjR-2nSsIZkYdPEYdA', // Insert real key for AI resolution
     POLL_INTERVAL: 4000,
     MAX_BATCH: 500
 };
