@@ -15,7 +15,7 @@ window.OTPModule = {
             <div class="glass-panel rounded-xl overflow-hidden border border-purple-500/30 shadow-[0_0_20px_rgba(139,92,246,0.15)]">
                 <div class="p-5 border-b border-white/10 bg-purple-900/20">
                     <h3 class="font-bold text-white flex items-center gap-2">🔐 Manual Intervention Gate</h3>
-                    <p class="text-xs text-slate-400 mt-1">If the Chrome Extension hits an authentication wall during bulk processing, it pauses and waits for your input here.</p>
+                    <p class="text-xs text-slate-400 mt-1">If the Chrome Extension hits an authentication wall, enter the OTP here to inject it into Amazon.</p>
                 </div>
                 
                 ${otpOrders.length === 0 ? 
@@ -28,12 +28,12 @@ window.OTPModule = {
                         ${otpOrders.map(order => `
                             <div class="bg-slate-800 border border-purple-500/40 rounded-lg p-5 flex justify-between items-center shadow-lg">
                                 <div>
-                                    <p class="text-white font-bold mb-1">Authentication Required: ${(order.platform || 'System').toUpperCase()}</p>
-                                    <p class="text-sm text-slate-400">ASIN: <span class="font-mono text-purple-300">${order.asin}</span> | Bot requires delivery/login OTP.</p>
+                                    <p class="text-white font-bold mb-1">Authentication Required</p>
+                                    <p class="text-sm text-slate-400">ASIN: <span class="font-mono text-purple-300">${order.asin}</span></p>
                                 </div>
                                 <div class="flex gap-3 items-center">
                                     <input type="text" id="otp-input-${order.id}" placeholder="Enter OTP..." class="bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white outline-none focus:border-purple-500">
-                                    <button class="submit-otp-btn bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2 rounded transition-colors" data-id="${order.id}">Submit & Resume</button>
+                                    <button class="submit-otp-btn bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2 rounded transition-colors" data-id="${order.id}">Inject OTP</button>
                                 </div>
                             </div>
                         `).join('')}
@@ -59,13 +59,24 @@ window.OTPModule = {
                     return;
                 }
 
-                e.target.innerText = "Submitting...";
+                e.target.innerText = "Injecting...";
                 e.target.disabled = true;
 
+                // 1. Update Database Status
                 if (window.AppController) {
                     await window.AppController.submitOTP(orderId, otpValue);
-                    input.value = '';
                 }
+
+                // 2. NEW: Fire the OTP directly into the Chrome Extension pipeline
+                document.dispatchEvent(new CustomEvent('InjectAmazonOTP', { 
+                    detail: { otp: otpValue } 
+                }));
+
+                input.value = '';
+                setTimeout(() => {
+                    e.target.innerText = "Inject OTP";
+                    e.target.disabled = false;
+                }, 2000);
             });
         });
     }

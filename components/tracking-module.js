@@ -30,7 +30,7 @@ window.TrackingModule = {
                         <p class="text-3xl font-bold text-amber-400">${outForDelivery}</p>
                     </div>
                     <div class="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-                        <p class="text-slate-400 text-xs uppercase tracking-wider mb-1">Delivered Today</p>
+                        <p class="text-slate-400 text-xs uppercase tracking-wider mb-1">Delivered</p>
                         <p class="text-3xl font-bold text-emerald-400">${delivered}</p>
                     </div>
                 </div>
@@ -53,6 +53,8 @@ window.TrackingModule = {
                 </div>
             </div>
         `;
+        
+        setTimeout(() => this.bindEvents(wrapper), 0);
         return wrapper;
     },
 
@@ -60,29 +62,54 @@ window.TrackingModule = {
         const validOrders = liveOrders.filter(o => o.status === 'completed');
         
         if (validOrders.length === 0) {
-            return `<tr><td colspan="5" class="p-12 text-center text-slate-500">No shipped orders available for tracking.</td></tr>`;
+            return `<tr><td colspan="5" class="p-12 text-center text-slate-500">No completed orders available for tracking.</td></tr>`;
         }
         
         return validOrders.map(order => {
-            const trackingId = `AWB${Math.floor(Math.random() * 900000000) + 100000000}`;
-            const courier = (order.platform === 'amazon') ? 'Amazon Shipping' : 'Ecom Express';
+            // Pulling REAL data from your Supabase database
+            const trackingId = order.tracking_id || 'Pending Sync';
+            const courier = order.courier || 'Pending...';
             let tStatus = order.tracking_status || 'processing';
-            let badgeStyle = 'bg-slate-700 text-slate-300';
             
+            let badgeStyle = 'bg-slate-700 text-slate-300';
             if(tStatus === 'shipped') badgeStyle = 'bg-blue-900/50 text-blue-400 border border-blue-500/30';
+            if(tStatus === 'out_for_delivery') badgeStyle = 'bg-amber-900/50 text-amber-400 border border-amber-500/30';
             if(tStatus === 'delivered') badgeStyle = 'bg-emerald-900/50 text-emerald-400 border border-emerald-500/30';
 
             return `
                 <tr class="hover:bg-white/5 transition-colors">
                     <td class="p-4 text-white font-mono">${order.asin}</td>
                     <td class="p-4 text-slate-300">${courier}</td>
-                    <td class="p-4 text-blue-400 font-mono hover:underline cursor-pointer">${trackingId}</td>
+                    <td class="p-4 text-blue-400 font-mono">${trackingId}</td>
                     <td class="p-4">
-                        <span class="${badgeStyle} px-2 py-1 rounded text-xs">${tStatus.toUpperCase()}</span>
+                        <span class="${badgeStyle} px-2 py-1 rounded text-xs">${tStatus.toUpperCase().replace('_', ' ')}</span>
                     </td>
-                    <td class="p-4"><button class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-white transition-colors">Track Live</button></td>
+                    <td class="p-4">
+                        <button class="sync-track-btn text-xs bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white transition-colors" data-dbid="${order.id}">Sync Live Data</button>
+                    </td>
                 </tr>
             `;
         }).join('');
+    },
+
+    bindEvents(wrapper) {
+        const buttons = wrapper.querySelectorAll('.sync-track-btn');
+        buttons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const dbId = e.target.getAttribute('data-dbid');
+                const amazonId = prompt("Enter the 17-digit Amazon Order ID to fetch live tracking:");
+                
+                if (amazonId && amazonId.length >= 15) {
+                    e.target.innerText = "Syncing...";
+                    e.target.disabled = true;
+                    
+                    document.dispatchEvent(new CustomEvent('FetchAmazonTracking', { 
+                        detail: { amazonOrderId: amazonId.trim(), dbOrderId: dbId } 
+                    }));
+                    
+                    if(window.Utils) window.Utils.showToast("Bot dispatched to scrape tracking...", "success");
+                }
+            });
+        });
     }
 };
