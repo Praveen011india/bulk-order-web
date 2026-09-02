@@ -27,12 +27,13 @@ window.OrderModule = {
                 </div>
             </div>
 
-            <!-- Mass Ingestion Zone -->
-            <div class="glass-panel border-2 border-dashed border-slate-600 hover:border-gold-500/50 transition-colors rounded-xl p-10 text-center mb-8 relative group">
-                <div class="text-4xl mb-4">🛒</div>
-                <h3 class="text-xl font-bold text-white mb-2">Upload Bulk Order Manifest</h3>
-                <p class="text-slate-400 text-sm mb-6 max-w-md mx-auto">Upload a CSV (ASIN, Quantity). Processes up to 500 orders automatically across multiple platforms.</p>
-                <input type="file" id="csv-file" accept=".csv" class="block mx-auto text-sm text-slate-400 file:mr-4 file:py-2.5 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-gold-500 file:text-royal-900 hover:file:bg-gold-400 cursor-pointer transition-colors">
+            <!-- Smart Mass CSV Ingestion Zone -->
+            <div class="glass-panel border-2 border-dashed border-slate-600 hover:border-blue-500/50 transition-colors rounded-xl p-10 text-center mb-8 relative cursor-pointer group">
+                <input type="file" id="csv-file" accept=".csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
+                <div class="text-4xl mb-4 group-hover:scale-110 transition-transform">📁</div>
+                <h3 class="text-xl font-bold text-white mb-2">Upload Bulk Order Manifest (CSV)</h3>
+                <p class="text-slate-400 text-sm mb-2 max-w-md mx-auto">Col 1: Name, URL, or ASIN | Col 2: Quantity</p>
+                <div id="upload-status" class="mt-4 text-sm font-bold text-blue-400">Drag & Drop or Click to Browse</div>
             </div>
 
             <button id="process-btn" class="hidden w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-royal-900 font-bold py-4 rounded-xl mb-8 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all transform hover:-translate-y-1 text-lg">
@@ -65,16 +66,82 @@ window.OrderModule = {
         `;
 
         this.bindEvents(wrapper);
-        // Delay render slightly to ensure AppState is fully mounted
         setTimeout(() => this.renderTable(wrapper), 50);
         return wrapper;
     },
 
     bindEvents(wrapper) {
         const fileInput = wrapper.querySelector('#csv-file');
+        const statusText = wrapper.querySelector('#upload-status');
+
+        // --- NEW: Smart CSV Parsing Engine ---
         if (fileInput) {
             fileInput.addEventListener('change', (e) => {
-                if (window.CSVManager) window.CSVManager.handleFileUpload(e);
+                const file = e.target.files[0];
+                if (!file) return;
+
+                statusText.innerText = "Processing CSV data...";
+                statusText.className = "mt-4 text-sm font-bold text-emerald-400 animate-pulse";
+
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    const text = event.target.result;
+                    const rows = text.split('\n').filter(row => row.trim().length > 0);
+                    
+                    const payload = rows.map((row, index) => {
+                        // Skip header row if it exists
+                        if (index === 0 && row.toLowerCase().includes('quantity')) return null;
+                        
+                        const cols = row.split(',');
+                        let rawProduct = cols[0] ? cols[0].trim() : '';
+                        let quantity = cols[1] ? parseInt(cols[1].trim()) : 1;
+                        if (isNaN(quantity) || quantity < 1) quantity = 1;
+                        
+                        let finalIdentifier = rawProduct;
+                        
+                        // REGEX: Extract ASIN from Amazon URL if present
+                        const urlMatch = rawProduct.match(/(?:dp|o|gp|-|asin)[/=-]([A-Z0-9]{10})/i);
+                        if (urlMatch && urlMatch[1]) {
+                            finalIdentifier = urlMatch[1].toUpperCase();
+                        } else if (/^[A-Z0-9]{10}$/i.test(rawProduct)) {
+                            finalIdentifier = rawProduct.toUpperCase(); // Already a clean ASIN
+                        } // Else, keep it as raw name/search text for the background.js fallback
+
+                        return {
+                            user_id: window.AppState.user.email,
+                            asin: finalIdentifier,
+                            quantity: quantity,
+                            status: 'pending',
+                            coupon_code: window.AppState.globalCoupon || ''
+                        };
+                    }).filter(Boolean);
+
+                    try {
+                        // Push directly to Supabase
+                        const response = await fetch(`${window.CONFIG.SUPABASE_URL}/rest/v1/bulk_orders`, {
+                            method: 'POST',
+                            headers: {
+                                'apikey': window.CONFIG.SUPABASE_ANON_KEY,
+                                'Authorization': `Bearer ${window.CONFIG.SUPABASE_ANON_KEY}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        if (response.ok) {
+                            statusText.innerText = `✅ Successfully queued ${payload.length} items!`;
+                            statusText.classList.remove('animate-pulse');
+                            // Trigger dashboard to refresh the table
+                            if (window.AppController) window.AppController.fetchLiveOrders();
+                        } else {
+                            throw new Error("DB response not OK");
+                        }
+                    } catch (err) {
+                        statusText.innerText = "❌ Database Upload Failed. Check API Keys.";
+                        statusText.className = "mt-4 text-sm font-bold text-red-500";
+                    }
+                };
+                reader.readAsText(file);
             });
         }
 
@@ -105,7 +172,7 @@ window.OrderModule = {
                         window.AppState.queue.push({
                             asin: asin,
                             quantity: qtyVal,
-                            coupon_code: null,
+                            coupon_code: window.AppState.globalCoupon || null,
                             status: 'pending_sync'
                         });
                         
@@ -126,7 +193,6 @@ window.OrderModule = {
     },
 
     async resolveAsinWithGemini(query) {
-        // Replace with your actual Gemini API Key inside a secure edge function for production
         const GEMINI_API_KEY = 'YOUR_GEMINI_API_KEY'; 
         const prompt = `Extract ONLY the 10-character Amazon ASIN, or Flipkart/Shopsy Product ID from this input. Return ONLY the alphanumeric ID. Input: ${query}`;
 
@@ -148,7 +214,7 @@ window.OrderModule = {
         
         if (!tbody || !emptyState) return;
 
-        // Strictly use real live data from Supabase and the active local queue[cite: 3]
+        // Combine local queue (AI adds) with Supabase DB orders (CSV uploads)
         const combinedData = [...(window.AppState.queue || []), ...(window.AppState.liveOrders || [])];
         tbody.innerHTML = '';
         
@@ -170,12 +236,13 @@ window.OrderModule = {
             else if (status === 'running') bgStyle = 'bg-amber-900/40 text-amber-400 border border-amber-500/30';
             else if (status === 'otp_required') bgStyle = 'bg-purple-900/40 text-purple-400 border border-purple-500/30';
 
-            // Determine platform for the UI[cite: 3]
-            const platform = order.platform || (window.Utils ? window.Utils.determinePlatform(order.asin) : 'Unknown');
+            // Determine platform for the UI
+            const platform = order.platform || (window.Utils ? window.Utils.determinePlatform(order.asin) : 'Amazon');
+            const displayAsin = order.asin.length > 25 ? order.asin.substring(0,25) + '...' : order.asin;
 
             tbody.innerHTML += `
                 <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
-                    <td class="p-4 text-white font-mono">${order.asin}</td>
+                    <td class="p-4 text-white font-mono">${displayAsin}</td>
                     <td class="p-4 text-slate-300 capitalize">${platform}</td>
                     <td class="p-4 text-slate-300">${order.quantity}</td>
                     <td class="p-4 font-bold tracking-wider text-xs">
