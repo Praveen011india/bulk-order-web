@@ -264,21 +264,26 @@
         </section>
 
         <!-- Book Demo Section -->
+        <!-- Book Demo Section -->
         <section id="demo" class="py-24 bg-royal-900 text-white relative overflow-hidden">
             <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjEpIi8+PC9zdmc+')]"></div>
             <div class="max-w-4xl mx-auto px-6 relative z-10 text-center">
                 <h2 class="text-4xl md:text-5xl font-serif font-black mb-6">Ready to scale infinitely?</h2>
-                <p class="text-slate-400 mb-12 text-lg">Leave manual orders in the past. Claim your enterprise access key today.</p>
+                <p class="text-slate-400 mb-10 text-lg">Leave manual orders in the past. Claim your enterprise access key today.</p>
                 
-                <form id="demo-form" class="flex flex-col md:flex-row gap-4 justify-center max-w-2xl mx-auto">
-                    <input type="email" required placeholder="Enter your business email" class="flex-1 bg-white/10 border border-white/20 rounded-xl px-6 py-4 text-white placeholder-slate-400 outline-none focus:border-gold-500 transition-colors">
+                <form id="demo-form" action="https://formspree.io/f/moeqweky" method="POST" class="flex flex-col md:flex-row gap-4 justify-center max-w-2xl mx-auto mb-8">
+                    <input type="email" name="email" required placeholder="Enter your business email" class="flex-1 bg-white/10 border border-white/20 rounded-xl px-6 py-4 text-white placeholder-slate-400 outline-none focus:border-gold-500 transition-colors">
                     <button type="submit" class="bg-gold-500 hover:bg-gold-400 text-royal-900 font-bold px-8 py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(250,204,21,0.3)] transform hover:scale-105 whitespace-nowrap">
                         Request Access
                     </button>
                 </form>
+
+                <!-- Phone Number Display -->
+                <div class="text-slate-300 text-sm font-medium">
+                    Prefer to speak directly? Call our Enterprise Team at <a href="tel:+919376303211" class="text-gold-400 font-bold hover:underline tracking-wider">+91 93763 03211</a>
+                </div>
             </div>
         </section>
-
         <!-- Footer -->
         <footer class="bg-royal-950 pt-16 pb-8 px-6 text-slate-400">
             <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 mb-12 border-b border-white/10 pb-12">
@@ -297,8 +302,8 @@
                 <div>
                     <h4 class="text-white font-bold tracking-widest uppercase text-xs mb-6">Contact</h4>
                     <ul class="space-y-3 text-sm">
-                        <li><a href="mailto:support@bulkorderbuddy.com" class="hover:text-gold-400 transition-colors">support@bulkorderbuddy.com</a></li>
-                        <li><a href="tel:+919873024343" class="hover:text-gold-400 transition-colors">+91 98730 24343</a></li>
+                        <li><a href="mailto:praveencs2024@gmail.com" class="hover:text-gold-400 transition-colors">praveencs2024@gmail.com</a></li>
+                        <li><a href="tel:+919376303211" class="hover:text-gold-400 transition-colors">+91 93763 03211</a></li>
                         <li class="pt-4"><a href="#" class="footer-link text-emerald-400 hover:text-emerald-300">System Status: Online</a></li>
                     </ul>
                 </div>
@@ -414,10 +419,36 @@
     <!-- UI INTERACTIVITY SCRIPT -->
     <script>
         // Form & Button Handlers for Landing Page
-        document.getElementById('demo-form')?.addEventListener('submit', (e) => {
-            e.preventDefault();
-            showUIToast("Demo request received! Our enterprise team will contact you shortly.", "success");
-            e.target.reset();
+        // Form & Button Handlers for Landing Page
+        document.getElementById('demo-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Prevents page redirect
+            const form = e.target;
+            const btn = form.querySelector('button[type="submit"]');
+            const originalText = btn.innerText;
+            
+            btn.innerText = "Sending...";
+            btn.disabled = true;
+
+            try {
+                // Send data to Formspree silently in the background
+                const response = await fetch(form.action, {
+                    method: form.method,
+                    body: new FormData(form),
+                    headers: { 'Accept': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    showUIToast("Demo request received! Our enterprise team will contact you shortly.", "success");
+                    form.reset();
+                } else {
+                    showUIToast("There was a problem submitting your request.", "error");
+                }
+            } catch (error) {
+                showUIToast("Network error. Please try again or call us directly.", "error");
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
         });
 
         document.querySelectorAll('.footer-link, .demo-btn').forEach(btn => {
