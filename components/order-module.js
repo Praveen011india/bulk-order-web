@@ -1,6 +1,6 @@
 /**
  * components/order-module.js
- * Handles mass CSV ingestion, AI-powered URL resolution, and real-time live data rendering.
+ * Handles mass CSV ingestion, AI-powered URL resolution, real-time live data rendering, and DB cleanup.
  */
 
 window.OrderModule = {
@@ -9,7 +9,7 @@ window.OrderModule = {
         wrapper.className = 'module-fade-in w-full';
 
         wrapper.innerHTML = `
-            <!-- AI Smart Add (Gemini API Integration) -->
+            <!-- AI Smart Add -->
             <div class="glass-panel border-2 border-purple-500/30 rounded-xl p-8 mb-8 relative overflow-hidden group">
                 <div class="absolute inset-0 bg-purple-500/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
                 <div class="relative z-10 flex flex-col md:flex-row gap-4 items-center">
@@ -17,7 +17,7 @@ window.OrderModule = {
                         <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
                             🤖 AI Smart Order Placement
                         </h3>
-                        <p class="text-xs text-slate-400 mb-4">Paste a raw product URL or exact product name. The AI will automatically extract the correct ASIN/Product ID.</p>
+                        <p class="text-xs text-slate-400 mb-4">Paste a raw product URL or exact product name.</p>
                         <div class="flex gap-3">
                             <input type="text" id="ai-product-input" placeholder="e.g., https://amazon.in/dp/B08L5WHFT9" class="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white outline-none focus:border-purple-500">
                             <input type="number" id="ai-product-qty" value="1" min="1" class="w-24 bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-white outline-none focus:border-purple-500" placeholder="Qty">
@@ -44,6 +44,11 @@ window.OrderModule = {
             <div class="glass-panel rounded-xl overflow-hidden border border-white/10 shadow-lg">
                 <div class="p-5 border-b border-white/10 bg-black/20 flex justify-between items-center">
                     <h3 class="font-bold text-white">📦 Real-Time Order Management</h3>
+                    
+                    <!-- NEW: Bulk Database Cleanup Button -->
+                    <button id="clear-completed-btn" class="bg-red-600/80 hover:bg-red-500 text-white text-xs px-4 py-2 rounded transition-colors flex items-center gap-2 shadow-lg hidden">
+                        <span>🧹</span> Clear Completed
+                    </button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
@@ -74,7 +79,6 @@ window.OrderModule = {
         const fileInput = wrapper.querySelector('#csv-file');
         const statusText = wrapper.querySelector('#upload-status');
 
-        // --- NEW: Smart CSV Parsing Engine ---
         if (fileInput) {
             fileInput.addEventListener('change', (e) => {
                 const file = e.target.files[0];
@@ -89,7 +93,6 @@ window.OrderModule = {
                     const rows = text.split('\n').filter(row => row.trim().length > 0);
                     
                     const payload = rows.map((row, index) => {
-                        // Skip header row if it exists
                         if (index === 0 && row.toLowerCase().includes('quantity')) return null;
                         
                         const cols = row.split(',');
@@ -98,14 +101,12 @@ window.OrderModule = {
                         if (isNaN(quantity) || quantity < 1) quantity = 1;
                         
                         let finalIdentifier = rawProduct;
-                        
-                        // REGEX: Extract ASIN from Amazon URL if present
                         const urlMatch = rawProduct.match(/(?:dp|o|gp|-|asin)[/=-]([A-Z0-9]{10})/i);
                         if (urlMatch && urlMatch[1]) {
                             finalIdentifier = urlMatch[1].toUpperCase();
                         } else if (/^[A-Z0-9]{10}$/i.test(rawProduct)) {
-                            finalIdentifier = rawProduct.toUpperCase(); // Already a clean ASIN
-                        } // Else, keep it as raw name/search text for the background.js fallback
+                            finalIdentifier = rawProduct.toUpperCase();
+                        }
 
                         return {
                             user_id: window.AppState.user.email,
@@ -117,7 +118,6 @@ window.OrderModule = {
                     }).filter(Boolean);
 
                     try {
-                        // Push directly to Supabase
                         const response = await fetch(`${window.CONFIG.SUPABASE_URL}/rest/v1/bulk_orders`, {
                             method: 'POST',
                             headers: {
@@ -131,7 +131,6 @@ window.OrderModule = {
                         if (response.ok) {
                             statusText.innerText = `✅ Successfully queued ${payload.length} items!`;
                             statusText.classList.remove('animate-pulse');
-                            // Trigger dashboard to refresh the table
                             if (window.AppController) window.AppController.fetchLiveOrders();
                         } else {
                             throw new Error("DB response not OK");
@@ -179,14 +178,50 @@ window.OrderModule = {
                         if (window.Utils) window.Utils.showToast(`Resolved Target: ${asin}`, "success");
                         wrapper.querySelector('#ai-product-input').value = '';
                         this.renderTable(wrapper);
-                    } else {
-                        throw new Error("Extraction failed.");
                     }
                 } catch (err) {
                     if (window.Utils) window.Utils.showToast("AI Resolution Failed.", "error");
                 } finally {
                     aiBtn.innerText = "Resolve & Add";
                     aiBtn.disabled = false;
+                }
+            });
+        }
+
+        // --- NEW: Database Deletion Logic ---
+        const clearBtn = wrapper.querySelector('#clear-completed-btn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', async () => {
+                const confirmDelete = confirm("Are you sure you want to permanently delete all completed orders from the database to free up space?");
+                if (!confirmDelete) return;
+
+                clearBtn.innerHTML = `<span>⏳</span> Clearing...`;
+                clearBtn.disabled = true;
+
+                try {
+                    // Send DELETE request to Supabase targeting ONLY completed orders for this user
+                    const deleteEndpoint = `${window.CONFIG.SUPABASE_URL}/rest/v1/bulk_orders?status=eq.completed&user_id=eq.${encodeURIComponent(window.AppState.user.email)}`;
+                    
+                    const response = await fetch(deleteEndpoint, {
+                        method: 'DELETE',
+                        headers: {
+                            'apikey': window.CONFIG.SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${window.CONFIG.SUPABASE_ANON_KEY}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        if (window.Utils) window.Utils.showToast("Database successfully cleaned.", "success");
+                        // Refresh the UI table
+                        if (window.AppController) window.AppController.fetchLiveOrders();
+                    } else {
+                        throw new Error("Deletion failed");
+                    }
+                } catch (err) {
+                    if (window.Utils) window.Utils.showToast("Error cleaning database.", "error");
+                } finally {
+                    clearBtn.innerHTML = `<span>🧹</span> Clear Completed`;
+                    clearBtn.disabled = false;
                 }
             });
         }
@@ -211,21 +246,29 @@ window.OrderModule = {
         const tbody = wrapper.querySelector('#table-body');
         const emptyState = wrapper.querySelector('#empty-state');
         const processBtn = wrapper.querySelector('#process-btn');
+        const clearBtn = wrapper.querySelector('#clear-completed-btn');
         
         if (!tbody || !emptyState) return;
 
-        // Combine local queue (AI adds) with Supabase DB orders (CSV uploads)
         const combinedData = [...(window.AppState.queue || []), ...(window.AppState.liveOrders || [])];
         tbody.innerHTML = '';
         
         if (combinedData.length === 0) {
             emptyState.classList.remove('hidden');
             if (processBtn) processBtn.classList.add('hidden');
+            if (clearBtn) clearBtn.classList.add('hidden');
             return;
         }
 
         emptyState.classList.add('hidden');
         if (window.AppState.queue.length > 0 && processBtn) processBtn.classList.remove('hidden');
+
+        // Reveal the Clear button only if there is at least one "completed" order
+        const hasCompleted = combinedData.some(o => (o.status || '').toLowerCase() === 'completed');
+        if (clearBtn) {
+            if (hasCompleted) clearBtn.classList.remove('hidden');
+            else clearBtn.classList.add('hidden');
+        }
 
         combinedData.forEach(order => {
             let bgStyle = 'bg-slate-800/40 text-slate-400';
@@ -234,9 +277,7 @@ window.OrderModule = {
             if (status === 'completed') bgStyle = 'bg-emerald-900/40 text-emerald-400 border border-emerald-500/30';
             else if (status.includes('pending')) bgStyle = 'bg-blue-900/40 text-blue-400 border border-blue-500/30';
             else if (status === 'running') bgStyle = 'bg-amber-900/40 text-amber-400 border border-amber-500/30';
-            else if (status === 'otp_required') bgStyle = 'bg-purple-900/40 text-purple-400 border border-purple-500/30';
 
-            // Determine platform for the UI
             const platform = order.platform || (window.Utils ? window.Utils.determinePlatform(order.asin) : 'Amazon');
             const displayAsin = order.asin.length > 25 ? order.asin.substring(0,25) + '...' : order.asin;
 
