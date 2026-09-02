@@ -1,6 +1,6 @@
 /**
  * components/gst-module.js
- * Handles GST calculation and invoice generation.
+ * Handles GST calculation and invoice generation from real Supabase data.
  */
 
 window.GSTModule = {
@@ -46,20 +46,33 @@ window.GSTModule = {
         }
 
         return completed.map(order => {
-            const val = Math.floor(Math.random() * 5000) + 500;
-            const gst = (val * 0.18).toFixed(2);
+            // 1. Pull real data from Supabase instead of Math.random()
+            const val = parseFloat(order.taxable_value);
+            const gst = parseFloat(order.gst_amount);
             const shortId = order.id ? order.id.toString().substring(0, 8) : 'ORD-123';
+
+            // 2. Determine if the bot has updated the final price yet
+            const isPending = isNaN(val) || val === 0;
+
+            const displayVal = isPending ? 'Syncing...' : `₹${val.toFixed(2)}`;
+            const displayGst = isPending ? 'Syncing...' : `₹${gst.toFixed(2)} (18%)`;
+            
+            const statusBadge = isPending 
+                ? `<span class="bg-amber-900/40 text-amber-400 border border-amber-500/30 px-2 py-1 rounded text-xs">Pending Data</span>`
+                : `<span class="bg-emerald-900/40 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded text-xs">Generated</span>`;
+                
+            const actionBtn = isPending
+                ? `<button class="text-slate-500 cursor-not-allowed text-xs transition-colors">PDF Invoice</button>`
+                : `<button class="text-blue-400 hover:text-blue-300 underline text-xs transition-colors">PDF Invoice</button>`;
 
             return `
                 <tr class="hover:bg-white/5 transition-colors">
                     <td class="p-4 text-slate-400 font-mono text-xs uppercase">${shortId}...</td>
                     <td class="p-4 text-white font-mono">${order.asin}</td>
-                    <td class="p-4 text-slate-300">₹${val}</td>
-                    <td class="p-4 text-amber-400">₹${gst} (18%)</td>
-                    <td class="p-4">
-                        <span class="bg-emerald-900/40 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded text-xs">Generated</span>
-                    </td>
-                    <td class="p-4"><button class="text-blue-400 hover:text-blue-300 underline text-xs transition-colors">PDF Invoice</button></td>
+                    <td class="p-4 text-slate-300">${displayVal}</td>
+                    <td class="p-4 text-amber-400">${displayGst}</td>
+                    <td class="p-4">${statusBadge}</td>
+                    <td class="p-4">${actionBtn}</td>
                 </tr>
             `;
         }).join('');

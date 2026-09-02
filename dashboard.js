@@ -52,13 +52,18 @@ const Utils = {
 // ==========================================
 // 2. NATIVE AUTHENTICATION 
 // ==========================================
+// ==========================================
+// 2. NATIVE AUTHENTICATION & ROUTING
+// ==========================================
 window.addEventListener('DOMContentLoaded', () => {
+    // Check for existing session (Auto-Login)
     const savedUser = localStorage.getItem('bob_session');
     if (savedUser) {
         AppState.user = JSON.parse(savedUser);
-        activateDashboard();
+        activateDashboard(true); // true = Bypass onboarding, go straight to dashboard
     }
 
+    // Handle fresh manual login
     const loginForm = document.getElementById('custom-login-form');
     if (loginForm) {
         loginForm.addEventListener('submit', (e) => {
@@ -73,10 +78,21 @@ window.addEventListener('DOMContentLoaded', () => {
                 AppState.user = { email: email, id: 'merchant_' + Date.now() };
                 localStorage.setItem('bob_session', JSON.stringify(AppState.user));
                 Utils.showToast("Secure Connection Established.", "success");
-                activateDashboard();
+                
+                activateDashboard(false); // false = Show the intermediary onboarding screen
             }, 1000);
         });
     }
+
+    // Intermediary "Proceed" Button Click Handler
+    document.getElementById('proceed-to-dashboard-btn')?.addEventListener('click', () => {
+        const onboardView = document.getElementById('extension-onboarding-view');
+        if (onboardView) {
+            onboardView.classList.add('hidden');
+            onboardView.classList.remove('flex');
+        }
+        launchMainDashboardInterface();
+    });
 
     document.getElementById('logout-btn')?.addEventListener('click', () => {
         localStorage.removeItem('bob_session');
@@ -84,25 +100,42 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-function activateDashboard() {
+function activateDashboard(isAutoLogin) {
+    // Always hide landing view on auth success
     document.getElementById('landing-view')?.classList.add('hidden');
+
+    if (isAutoLogin) {
+        // Skip intermediary screen
+        launchMainDashboardInterface();
+    } else {
+        // Show intermediary screen
+        const onboardView = document.getElementById('extension-onboarding-view');
+        if (onboardView) {
+            onboardView.classList.remove('hidden');
+            onboardView.classList.add('flex');
+        }
+    }
+}
+
+function launchMainDashboardInterface() {
+    // Show Dashboard UI
     const dbView = document.getElementById('dashboard-view');
     if (dbView) {
         dbView.classList.remove('hidden');
         dbView.classList.add('flex');
     }
     
+    // Initialize user state
     const userDisplay = document.getElementById('user-display');
     if (userDisplay) userDisplay.innerText = `Admin: ${AppState.user.email}`;
     
-    // Initial broadcast to Extension Bridge
+    // Broadcast keys to the extension
     document.dispatchEvent(new CustomEvent('SyncBotCredentials', {
         detail: { url: CONFIG.SUPABASE_URL, key: CONFIG.SUPABASE_ANON_KEY }
     }));
 
     AppController.init();
 }
-
 // ==========================================
 // 3. DATABASE ENGINE (REAL SUPABASE)
 // ==========================================
