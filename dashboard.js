@@ -118,20 +118,23 @@ function activateDashboard(isAutoLogin) {
 }
 
 function launchMainDashboardInterface() {
-    // Show Dashboard UI
     const dbView = document.getElementById('dashboard-view');
     if (dbView) {
         dbView.classList.remove('hidden');
         dbView.classList.add('flex');
     }
     
-    // Initialize user state
     const userDisplay = document.getElementById('user-display');
     if (userDisplay) userDisplay.innerText = `Admin: ${AppState.user.email}`;
     
-    // Broadcast keys to the extension
+    // --- CRITICAL MULTI-USER UPDATE ---
+    // Pass the user's email to the bot so it only processes their specific orders
     document.dispatchEvent(new CustomEvent('SyncBotCredentials', {
-        detail: { url: CONFIG.SUPABASE_URL, key: CONFIG.SUPABASE_ANON_KEY }
+        detail: { 
+            url: CONFIG.SUPABASE_URL, 
+            key: CONFIG.SUPABASE_ANON_KEY,
+            userId: AppState.user.email 
+        }
     }));
 
     AppController.init();

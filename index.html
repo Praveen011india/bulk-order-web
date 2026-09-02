@@ -95,38 +95,38 @@
     </div>
     <!-- Intermediary Extension Setup View -->
 <div id="extension-onboarding-view" class="hidden min-h-screen items-center justify-center bg-[#0B0F19] w-full relative z-50">
-    <div class="glass-panel max-w-2xl w-full p-10 rounded-2xl border border-blue-500/30 shadow-2xl shadow-blue-900/20 text-center relative overflow-hidden">
+    <div class="glass-panel max-w-3xl w-full p-10 rounded-2xl border border-blue-500/30 shadow-2xl text-center relative overflow-hidden">
         
-        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-500"></div>
+        <div class="text-5xl mb-4">🧩</div>
+        <h2 class="text-3xl font-bold text-white mb-2">Connect Your Automation Engine</h2>
+        <p class="text-slate-400 mb-8">Download and link your local Chrome execution bot to continue.</p>
 
-        <div class="text-6xl mb-6 animate-bounce">🧩</div>
-        <h2 class="text-3xl font-bold text-white mb-4">Required: Automation Engine</h2>
-        <p class="text-slate-300 mb-8 text-md leading-relaxed">
-            To securely process 1000-item bulk orders using the 1-Shot Cart Batching method, you must have the <b>BulkOrderBuddy Extension</b> active in Chrome.
-        </p>
-
-        <div class="bg-slate-900/80 border border-slate-700 rounded-xl p-6 mb-8 text-left shadow-inner">
-            <h3 class="text-blue-400 font-bold mb-4 uppercase tracking-wider text-sm flex items-center gap-2">
-                <span>⚙️</span> Pre-Flight Checklist
-            </h3>
-            <ul class="space-y-4 text-slate-300 text-sm">
-                <li class="flex items-center gap-3">
-                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-900/50 flex items-center justify-center text-emerald-400">✓</span> 
-                    Extension loaded via 'Load Unpacked' in <i>chrome://extensions</i>
-                </li>
-                <li class="flex items-center gap-3">
-                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-900/50 flex items-center justify-center text-emerald-400">✓</span> 
-                    Folder path strictly set to a Local Drive (Not OneDrive/Cloud)
-                </li>
-                <li class="flex items-center gap-3">
-                    <span class="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-900/50 flex items-center justify-center text-emerald-400">✓</span> 
-                    Background Worker is active and clear of errors
-                </li>
-            </ul>
+        <!-- Download Section -->
+        <div class="bg-blue-900/20 border border-blue-500/50 rounded-xl p-6 mb-8 flex flex-col items-center justify-center">
+            <a href="BulkOrderBuddy_Bot.zip" download class="bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg px-8 py-4 rounded-xl shadow-lg transition-transform hover:scale-105 flex items-center gap-3">
+                <span>⬇️</span> Download Extension (.ZIP)
+            </a>
+            <p class="text-xs text-blue-300 mt-3">Extract this ZIP file to your C:\ Drive after downloading.</p>
         </div>
 
-        <button id="proceed-to-dashboard-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg px-8 py-4 rounded-xl shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all hover:scale-[1.02] w-full flex justify-center items-center gap-2">
-            I Confirm Extension is Active — Launch Dashboard 🚀
+        <!-- Installation Steps -->
+        <div class="grid grid-cols-3 gap-4 mb-8 text-left">
+            <div class="bg-slate-800/80 border border-slate-700 rounded-lg p-5">
+                <div class="text-emerald-400 font-bold mb-2">Step 1: Developer Mode</div>
+                <p class="text-xs text-slate-300 leading-relaxed">Open <code class="text-blue-300 bg-slate-900 px-1 rounded">chrome://extensions</code> in a new tab. Toggle <b>Developer Mode</b> ON in the top right corner.</p>
+            </div>
+            <div class="bg-slate-800/80 border border-slate-700 rounded-lg p-5">
+                <div class="text-emerald-400 font-bold mb-2">Step 2: Load Unpacked</div>
+                <p class="text-xs text-slate-300 leading-relaxed">Click the <b>Load Unpacked</b> button in the top left corner of the extensions page.</p>
+            </div>
+            <div class="bg-slate-800/80 border border-slate-700 rounded-lg p-5">
+                <div class="text-emerald-400 font-bold mb-2">Step 3: Select Folder</div>
+                <p class="text-xs text-slate-300 leading-relaxed">Select the unzipped folder from your computer. Return here once installed.</p>
+            </div>
+        </div>
+
+        <button id="proceed-to-dashboard-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-lg px-8 py-4 rounded-xl w-full flex justify-center items-center gap-2 transition-colors">
+            Extension Installed — Launch Dashboard 🚀
         </button>
     </div>
 </div>
