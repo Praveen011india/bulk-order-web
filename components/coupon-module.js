@@ -8,7 +8,6 @@ window.CouponModule = {
         const wrapper = document.createElement('div');
         wrapper.className = 'module-fade-in w-full';
 
-        // Retrieve previously saved values so they persist when switching tabs
         const savedCoupon = localStorage.getItem('bob_global_coupon') || '';
         const savedSuperCoins = localStorage.getItem('bob_supercoins') !== 'false'; 
 
@@ -37,9 +36,7 @@ window.CouponModule = {
             </div>
         `;
 
-        // Wait for the DOM to render, then attach the click listeners
         setTimeout(() => this.bindEvents(wrapper), 0);
-
         return wrapper;
     },
 
@@ -48,24 +45,25 @@ window.CouponModule = {
         const couponInput = wrapper.querySelector('#global-coupon-input');
         const supercoinsToggle = wrapper.querySelector('#supercoins-toggle');
 
-        // Handle Coupon Saving
         saveBtn.addEventListener('click', () => {
             const val = couponInput.value.trim();
             
-            // Save locally and update the global state used by database.js
             localStorage.setItem('bob_global_coupon', val);
             if (window.AppState) window.AppState.globalCoupon = val;
             
-            // Visual feedback
+            // NEW: Dispatch the coupon directly to the Chrome Extension
+            document.dispatchEvent(new CustomEvent('SyncGlobalCoupon', { 
+                detail: { coupon: val } 
+            }));
+            
             if (window.Utils && window.Utils.showToast) {
-                window.Utils.showToast("Global discount rule saved securely.", "success");
+                window.Utils.showToast("Global discount rule synced to Extension.", "success");
             } else {
-                saveBtn.innerText = "Saved!";
+                saveBtn.innerText = "Synced!";
                 setTimeout(() => saveBtn.innerText = "Apply Rule", 2000);
             }
         });
 
-        // Handle Checkbox Toggling
         supercoinsToggle.addEventListener('change', (e) => {
             const isChecked = e.target.checked;
             localStorage.setItem('bob_supercoins', isChecked);
