@@ -1153,13 +1153,22 @@ const AppController = {
     init() {
         Logger.info("Initializing BulkOrderBuddy Enterprise Engine...");
         
+        let currentTab = Store.getState().activeTab;
+
         // Subscribe UI Re-renders to State Changes
         Store.subscribe((state) => {
-            // Only re-render the whole tab if it's NOT the orders tab (which handles its own targeted UI updates)
-            if (state.activeTab !== 'orders') {
+            // 1. Navigation Event: If user clicked a different tab, ALWAYS render the new screen
+            if (state.activeTab !== currentTab) {
+                currentTab = state.activeTab;
                 this.renderActiveTab();
-            } else {
+                return;
+            }
+            
+            // 2. Data Refresh Event: Update data seamlessly without breaking UI inputs
+            if (state.activeTab === 'orders') {
                 OrderModule.updateTableUI(document);
+            } else if (['tracking', 'gst', 'refunds'].includes(state.activeTab)) {
+                this.renderActiveTab();
             }
         });
 
@@ -1177,6 +1186,9 @@ const AppController = {
             item.addEventListener('click', (e) => {
                 e.preventDefault();
                 const target = item.dataset.target;
+                
+                // Prevent unnecessary re-renders if clicking the active tab
+                if (Store.getState().activeTab === target) return;
                 
                 this.updateNavUI(target);
                 Store.setState({ activeTab: target });
