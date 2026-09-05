@@ -8,10 +8,14 @@ window.TrackingModule = {
         const wrapper = document.createElement('div');
         wrapper.className = 'module-fade-in w-full';
         
-        const liveOrders = window.AppState ? window.AppState.liveOrders : [];
-        const shipped = liveOrders.filter(o => o.tracking_status === 'shipped').length;
-        const outForDelivery = liveOrders.filter(o => o.tracking_status === 'out_for_delivery').length;
-        const delivered = liveOrders.filter(o => o.tracking_status === 'delivered').length;
+        // CRITICAL FIX: Connect to the new Enterprise Store memory, with fallback to old AppState
+        const state = window.Store ? window.Store.getState() : (window.AppState || { liveOrders: [] });
+        const liveOrders = state.liveOrders || [];
+        
+        const validOrders = liveOrders.filter(o => o && o.status === 'completed');
+        const shipped = validOrders.filter(o => o.tracking_status === 'shipped').length;
+        const outForDelivery = validOrders.filter(o => o.tracking_status === 'out_for_delivery').length;
+        const delivered = validOrders.filter(o => o.tracking_status === 'delivered').length;
 
         wrapper.innerHTML = `
             <div class="glass-panel rounded-xl overflow-hidden border border-white/10 shadow-lg mb-8">
@@ -47,7 +51,7 @@ window.TrackingModule = {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-white/5 text-sm">
-                            ${this.generateTrackingRows(liveOrders)}
+                            ${this.generateTrackingRows(validOrders)}
                         </tbody>
                     </table>
                 </div>
@@ -58,18 +62,15 @@ window.TrackingModule = {
         return wrapper;
     },
 
-    generateTrackingRows(liveOrders) {
-        const validOrders = liveOrders.filter(o => o.status === 'completed');
-        
+    generateTrackingRows(validOrders) {
         if (validOrders.length === 0) {
-            return `<tr><td colspan="5" class="p-12 text-center text-slate-500">No completed orders available for tracking.</td></tr>`;
+            return `<tr><td colspan="5" class="p-12 text-center text-slate-500">No completed orders available for tracking synchronization.</td></tr>`;
         }
         
         return validOrders.map(order => {
-            // Pulling REAL data from your Supabase database
             const trackingId = order.tracking_id || 'Pending Sync';
             const courier = order.courier || 'Pending...';
-            let tStatus = order.tracking_status || 'processing';
+            let tStatus = (order.tracking_status || 'processing').toLowerCase();
             
             let badgeStyle = 'bg-slate-700 text-slate-300';
             if(tStatus === 'shipped') badgeStyle = 'bg-blue-900/50 text-blue-400 border border-blue-500/30';
@@ -82,10 +83,10 @@ window.TrackingModule = {
                     <td class="p-4 text-slate-300">${courier}</td>
                     <td class="p-4 text-blue-400 font-mono">${trackingId}</td>
                     <td class="p-4">
-                        <span class="${badgeStyle} px-2 py-1 rounded text-xs">${tStatus.toUpperCase().replace('_', ' ')}</span>
+                        <span class="${badgeStyle} px-2 py-1 rounded text-xs font-bold tracking-wide border">${tStatus.toUpperCase().replace(/_/g, ' ')}</span>
                     </td>
                     <td class="p-4">
-                        <button class="sync-track-btn text-xs bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white transition-colors" data-dbid="${order.id}">Sync Live Data</button>
+                        <button class="sync-track-btn text-xs font-bold bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-white transition-colors" data-dbid="${order.id}">Pull Live Data</button>
                     </td>
                 </tr>
             `;
@@ -93,21 +94,29 @@ window.TrackingModule = {
     },
 
     bindEvents(wrapper) {
-        const buttons = wrapper.querySelectorAll('.sync-track-btn');
-        buttons.forEach(btn => {
+        wrapper.querySelectorAll('.sync-track-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const dbId = e.target.getAttribute('data-dbid');
-                const amazonId = prompt("Enter the 17-digit Amazon Order ID to fetch live tracking:");
+                const amazonId = prompt("Enter the 17-digit Amazon Order ID (e.g. 405-1234567-8901234):");
                 
                 if (amazonId && amazonId.length >= 15) {
                     e.target.innerText = "Syncing...";
                     e.target.disabled = true;
+                    e.target.classList.add('animate-pulse');
                     
                     document.dispatchEvent(new CustomEvent('FetchAmazonTracking', { 
                         detail: { amazonOrderId: amazonId.trim(), dbOrderId: dbId } 
                     }));
                     
-                    if(window.Utils) window.Utils.showToast("Bot dispatched to scrape tracking...", "success");
+                    if(window.Utils) window.Utils.showToast("Tracking Webhook Dispatched...", "success");
+                    
+                    setTimeout(() => {
+                        e.target.innerText = "Pull Live Data";
+                        e.target.disabled = false;
+                        e.target.classList.remove('animate-pulse');
+                    }, 5000);
+                } else if (amazonId) {
+                    if(window.Utils) window.Utils.showToast("Invalid Order ID format.", "error");
                 }
             });
         });
