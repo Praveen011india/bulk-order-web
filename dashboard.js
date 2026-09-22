@@ -890,9 +890,15 @@ const WalletModule = {
             localStorage.setItem('bob_wallet', JSON.stringify(cards));
             Store.setState({ wallet: cards });
             
-            // Dispatch to Bridge
-            document.dispatchEvent(new CustomEvent('SyncWalletCards', { detail: { cards: cards } }));
+            // FIX: Save directly to Chrome Extension Storage so checkout_bot.js can read it!
+            if (typeof chrome !== 'undefined' && chrome.storage) {
+                chrome.storage.local.set({ walletCards: cards }, () => {
+                    Logger.info("Cards saved directly to chrome.storage.local");
+                });
+            }
             
+            // Dispatch to Bridge (Keep this just in case)
+            document.dispatchEvent(new CustomEvent('SyncWalletCards', { detail: { cards: cards } }));
             Utils.showToast("Payment Vault secured and synced to Extension Engine.", "success");
             
             // Re-render to show active badges
