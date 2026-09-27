@@ -22,6 +22,8 @@ const CONFIG = {
     REGEX: {
         ASIN: /^[A-Z0-9]{10}$/i,
         AMAZON_URL: /(?:dp|o|gp|-|asin)[/=-]([A-Z0-9]{10})/i,
+        FLIPKART_FSN: /^[A-Z0-9]{16}$/i, // Flipkart's 16-character IDs
+        FLIPKART_URL: /(?:pid=|p\/)(itm[A-Z0-9]+)/i, // Extracts Flipkart PIDs from messy URLs
         EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
         CVV: /^[0-9]{3,4}$/,
         LAST4: /^[0-9]{4}$/
@@ -124,9 +126,12 @@ const Utils = {
     determinePlatform(identifier) {
         if (!identifier) return 'amazon';
         identifier = identifier.trim().toUpperCase();
+        
+        // Smart routing logic for Amazon vs Flipkart
+        if (identifier.includes('FLIPKART') || identifier.length === 16 || identifier.startsWith('ITM')) return 'flipkart';
         if (identifier.startsWith('B') && identifier.length === 10) return 'amazon';
-        if (/^\d+$/.test(identifier)) return 'flipkart';
-        if (identifier.includes('shopsy')) return 'shopsy';
+        if (identifier.includes('SHOPSY')) return 'shopsy';
+        
         return 'amazon'; // Default fallback
     },
 
@@ -197,10 +202,6 @@ const Utils = {
 // 5. DATABASE LAYER (SUPABASE)
 // ==========================================
 const DatabaseEngine = {
-    /**
-     * Fetches real-time orders strictly associated with the active user.
-     * Includes automated retry logic for network instability.
-     */
     async fetchLiveOrders(retries = CONFIG.MAX_RETRIES) {
         const { user } = Store.getState();
         if (!user || !user.email) {
@@ -233,10 +234,6 @@ const DatabaseEngine = {
         }
     },
 
-    /**
-     * Pushes the local CSV queue to the cloud database.
-     * Enriches payload with global coupons, exact timestamps, and deterministic statuses.
-     */
     async pushQueueToCloud(queueArray) {
         const { user, globalCoupon, useSuperCoins } = Store.getState();
         if (!user || queueArray.length === 0) return false;
@@ -245,7 +242,7 @@ const DatabaseEngine = {
             user_id: user.email,
             asin: item.asin,
             quantity: item.quantity || 1,
-            platform: Utils.determinePlatform(item.asin),
+            platform: Utils.determinePlatform(item.asin), // Platform routing applies here!
             status: 'pending',
             tracking_status: 'unfulfilled',
             refund_status: 'none',
@@ -271,9 +268,6 @@ const DatabaseEngine = {
         }
     },
 
-    /**
-     * Executes a targeted PATCH request for a specific order.
-     */
     async patchOrder(orderId, payload) {
         try {
             const { error } = await _supabase.from('bulk_orders').update(payload).eq('id', orderId);
@@ -286,9 +280,6 @@ const DatabaseEngine = {
         }
     },
 
-    /**
-     * Clears all completed orders from the database to save space.
-     */
     async clearCompletedOrders() {
         const { user } = Store.getState();
         if (!user) return false;
@@ -318,14 +309,13 @@ const CSVProcessor = {
         const file = event.target.files[0];
         if (!file) return;
 
-        // File validation
         if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
             Utils.showToast("Invalid file format. Please upload a .CSV file.", "error");
             event.target.value = '';
             return;
         }
         
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        if (file.size > 5 * 1024 * 1024) { 
             Utils.showToast("File too large. Maximum size is 5MB.", "error");
             event.target.value = '';
             return;
@@ -338,7 +328,7 @@ const CSVProcessor = {
         reader.onerror = () => Utils.showToast("Failed to read file.", "error");
         reader.readAsText(file);
         
-        event.target.value = ''; // Reset input
+        event.target.value = ''; 
     },
 
     parseData(csvText) {
@@ -347,7 +337,6 @@ const CSVProcessor = {
             const parsedQueue = [];
             let errorCount = 0;
             
-            // Auto-detect headers
             const firstRow = rows[0].toLowerCase();
             const startIdx = (firstRow.includes('asin') || firstRow.includes('url') || firstRow.includes('product')) ? 1 : 0;
 
@@ -355,18 +344,21 @@ const CSVProcessor = {
                 const row = rows[i].trim();
                 if (!row) continue;
 
-                // Handle quotes and commas properly
                 const cols = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
                 if (!cols || cols.length === 0) continue;
 
                 let rawIdentifier = cols[0].replace(/(^"|"$)/g, '').trim();
                 let finalIdentifier = rawIdentifier;
                 
-                // Smart Extraction: Pull ASIN from messy Amazon URLs
-                const urlMatch = rawIdentifier.match(CONFIG.REGEX.AMAZON_URL);
-                if (urlMatch && urlMatch[1]) {
-                    finalIdentifier = urlMatch[1].toUpperCase();
-                } else if (CONFIG.REGEX.ASIN.test(rawIdentifier)) {
+                // Smart Extraction: Handles both Amazon and Flipkart URLs
+                const amzMatch = rawIdentifier.match(CONFIG.REGEX.AMAZON_URL);
+                const fkMatch = rawIdentifier.match(CONFIG.REGEX.FLIPKART_URL);
+
+                if (amzMatch && amzMatch[1]) {
+                    finalIdentifier = amzMatch[1].toUpperCase();
+                } else if (fkMatch && fkMatch[1]) {
+                    finalIdentifier = fkMatch[1].toUpperCase();
+                } else if (CONFIG.REGEX.ASIN.test(rawIdentifier) || CONFIG.REGEX.FLIPKART_FSN.test(rawIdentifier) || rawIdentifier.toUpperCase().startsWith('ITM')) {
                     finalIdentifier = rawIdentifier.toUpperCase();
                 }
 
@@ -416,7 +408,6 @@ const CSVProcessor = {
 // ==========================================
 // 7. UI MODULES (VIEWS)
 // ==========================================
-
 const BaseModule = {
     createWrapper() {
         const wrapper = document.createElement('div');
@@ -425,10 +416,7 @@ const BaseModule = {
     }
 };
 
-/**
- * MODULE 1: BULK ORDERING
- * Handles CSV Drag & Drop, Status Tables, and Cloud Sync execution.
- */
+/** MODULE 1: BULK ORDERING */
 const OrderModule = {
     render() {
         const wrapper = BaseModule.createWrapper();
@@ -461,14 +449,13 @@ const OrderModule = {
                     <table class="w-full text-left border-collapse">
                         <thead class="bg-slate-900/80 text-slate-400 text-xs uppercase tracking-widest">
                             <tr>
-                                <th class="p-5 font-semibold">Target ID (ASIN)</th>
+                                <th class="p-5 font-semibold">Target ID</th>
                                 <th class="p-5 font-semibold">Platform</th>
                                 <th class="p-5 font-semibold">Qty</th>
                                 <th class="p-5 font-semibold text-right">Live Status</th>
                             </tr>
                         </thead>
                         <tbody id="order-table-body" class="divide-y divide-white/5 text-sm">
-                            <!-- Populated dynamically -->
                         </tbody>
                     </table>
                     <div id="order-empty-state" class="p-20 text-center text-slate-500 flex flex-col items-center hidden">
@@ -489,14 +476,10 @@ const OrderModule = {
 
     bindEvents(wrapper) {
         const fileInput = wrapper.querySelector('#csv-upload');
-        if (fileInput) {
-            fileInput.addEventListener('change', (e) => CSVProcessor.handleFileUpload(e));
-        }
+        if (fileInput) fileInput.addEventListener('change', (e) => CSVProcessor.handleFileUpload(e));
 
         const syncBtn = wrapper.querySelector('#execute-sync-btn');
-        if (syncBtn) {
-            syncBtn.addEventListener('click', () => AppController.executeCloudSync());
-        }
+        if (syncBtn) syncBtn.addEventListener('click', () => AppController.executeCloudSync());
 
         const clearBtn = wrapper.querySelector('#clear-completed-btn');
         if (clearBtn) {
@@ -571,10 +554,7 @@ const OrderModule = {
     }
 };
 
-/**
- * MODULE 2: LOGISTICS TRACKING
- * Visualizes shipment statuses and provides webhooks to scrape live tracking data.
- */
+/** MODULE 2: LOGISTICS TRACKING */
 const TrackingModule = {
     render() {
         const wrapper = BaseModule.createWrapper();
@@ -672,9 +652,9 @@ const TrackingModule = {
         wrapper.querySelectorAll('.sync-track-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const dbId = e.target.getAttribute('data-dbid');
-                const amazonId = prompt("Enter the precise 17-digit Amazon Order ID to execute tracking webhook:");
+                const amazonId = prompt("Enter the precise Order ID to execute tracking webhook:");
                 
-                if (amazonId && amazonId.length >= 15) {
+                if (amazonId && amazonId.length >= 10) {
                     e.target.innerText = "Executing...";
                     e.target.classList.add('animate-pulse', 'bg-gold-600', 'border-gold-500');
                     e.target.disabled = true;
@@ -698,17 +678,13 @@ const TrackingModule = {
     }
 };
 
-/**
- * MODULE 3: GST INVOICING
- * Reads the actual finalized taxable value from the database.
- */
+/** MODULE 3: GST INVOICING */
 const GSTModule = {
     render() {
         const wrapper = BaseModule.createWrapper();
         const { liveOrders } = Store.getState();
         const completed = liveOrders.filter(o => o.status === 'completed');
 
-        // Calculate Totals
         let totalTaxable = 0;
         let totalGST = 0;
         completed.forEach(o => {
@@ -721,7 +697,7 @@ const GSTModule = {
                 <div class="p-6 border-b border-white/10 bg-black/20 flex justify-between items-center">
                     <div>
                         <h3 class="font-bold text-white text-lg flex items-center gap-2">🧾 B2B GST Invoicing</h3>
-                        <p class="text-xs text-slate-400 mt-1 font-medium">Auto-calculated 18% deductions derived from final cart checkout values.</p>
+                        <p class="text-xs text-slate-400 mt-1 font-medium">Auto-calculated deductions derived from final cart checkout values.</p>
                     </div>
                     <button class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm px-6 py-2.5 rounded-lg shadow-lg transition-transform hover:-translate-y-0.5">
                         Export Monthly PDF
@@ -734,7 +710,7 @@ const GSTModule = {
                         <p class="text-3xl font-black text-white">${Utils.formatCurrency(totalTaxable)}</p>
                     </div>
                     <div class="p-6 bg-black/10 text-center">
-                        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Total Input Tax Credit (18%)</p>
+                        <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-2">Total Input Tax Credit</p>
                         <p class="text-3xl font-black text-emerald-400">${Utils.formatCurrency(totalGST)}</p>
                     </div>
                 </div>
@@ -744,9 +720,9 @@ const GSTModule = {
                         <thead class="bg-slate-900/90 text-slate-400 text-xs uppercase tracking-widest">
                             <tr>
                                 <th class="p-5 font-semibold">Order Ref</th>
-                                <th class="p-5 font-semibold">Target (ASIN)</th>
+                                <th class="p-5 font-semibold">Target ID</th>
                                 <th class="p-5 font-semibold text-right">Taxable Value</th>
-                                <th class="p-5 font-semibold text-right">GST (18%)</th>
+                                <th class="p-5 font-semibold text-right">GST</th>
                                 <th class="p-5 font-semibold text-center">Invoice</th>
                             </tr>
                         </thead>
@@ -790,10 +766,7 @@ const GSTModule = {
     }
 };
 
-/**
- * MODULE 4: PAYMENT VAULT
- * Strictly validates CVV and Card formats before broadcasting to Extension.
- */
+/** MODULE 4: PAYMENT VAULT */
 const WalletModule = {
     render() {
         const wrapper = BaseModule.createWrapper();
@@ -844,7 +817,7 @@ const WalletModule = {
                     <div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-8 flex gap-4 items-start">
                         <span class="text-2xl">ℹ️</span>
                         <p class="text-sm text-blue-200 leading-relaxed">
-                            <strong>Crucial Setup:</strong> The Extension requires exact "Last 4" digits to locate the correct radio button on Amazon's checkout page. Ensure the cards saved here precisely match the cards pre-saved in your Amazon account.
+                            <strong>Crucial Setup:</strong> The Extension requires exact "Last 4" digits to locate the correct radio button. Ensure the cards saved here precisely match the cards pre-saved in your platform account.
                         </p>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -890,26 +863,21 @@ const WalletModule = {
             localStorage.setItem('bob_wallet', JSON.stringify(cards));
             Store.setState({ wallet: cards });
             
-            // FIX: Save directly to Chrome Extension Storage so checkout_bot.js can read it!
             if (typeof chrome !== 'undefined' && chrome.storage) {
                 chrome.storage.local.set({ walletCards: cards }, () => {
                     Logger.info("Cards saved directly to chrome.storage.local");
                 });
             }
             
-            // Dispatch to Bridge (Keep this just in case)
             document.dispatchEvent(new CustomEvent('SyncWalletCards', { detail: { cards: cards } }));
             Utils.showToast("Payment Vault secured and synced to Extension Engine.", "success");
             
-            // Re-render to show active badges
             setTimeout(() => AppController.renderActiveTab(), 500);
         });
     }
 };
 
-/**
- * MODULE 5: OTP GATE
- */
+/** MODULE 5: OTP GATE */
 const OTPModule = {
     render() {
         const wrapper = BaseModule.createWrapper();
@@ -920,7 +888,7 @@ const OTPModule = {
             <div class="glass-panel rounded-xl overflow-hidden border border-white/10 shadow-2xl">
                 <div class="p-6 border-b border-white/10 bg-purple-900/30">
                     <h3 class="font-bold text-white text-lg flex items-center gap-2">🔐 Manual Intervention Gate</h3>
-                    <p class="text-xs text-purple-200 mt-1 font-medium">If the bot encounters a 2FA wall on Amazon, it will pause and await input here.</p>
+                    <p class="text-xs text-purple-200 mt-1 font-medium">If the bot encounters a 2FA wall on Amazon or Flipkart, it will pause and await input here.</p>
                 </div>
                 ${otpOrders.length === 0 ? 
                     `<div class="p-20 text-center text-slate-500 flex flex-col items-center">
@@ -935,7 +903,7 @@ const OTPModule = {
                                     <div class="w-12 h-12 bg-purple-900/50 rounded-full flex items-center justify-center text-xl border border-purple-500/30">📱</div>
                                     <div>
                                         <p class="text-white font-bold text-lg mb-1">Auth Required: ${o.platform.toUpperCase()}</p>
-                                        <p class="text-sm text-slate-400">Target ASIN: <span class="font-mono text-purple-300 font-bold">${o.asin}</span> | Bot Engine Paused</p>
+                                        <p class="text-sm text-slate-400">Target ID: <span class="font-mono text-purple-300 font-bold">${o.asin}</span> | Bot Engine Paused</p>
                                     </div>
                                 </div>
                                 <div class="flex gap-3 w-full md:w-auto">
@@ -970,16 +938,14 @@ const OTPModule = {
                 e.target.classList.add('animate-pulse');
                 e.target.disabled = true;
 
-                // 1. Update Database Status to un-pause bot
                 const success = await DatabaseEngine.patchOrder(id, { status: 'running' });
                 
-                // 2. Dispatch event to bridge.js to physically type it on Amazon
                 document.dispatchEvent(new CustomEvent('InjectAmazonOTP', { 
                     detail: { otp: val } 
                 }));
 
                 if (success) {
-                    Utils.showToast("OTP successfully injected into Amazon pipeline.", "success");
+                    Utils.showToast("OTP successfully injected into pipeline.", "success");
                     AppController.triggerDataRefresh();
                 } else {
                     e.target.innerText = "Retry Injection";
@@ -991,9 +957,7 @@ const OTPModule = {
     }
 };
 
-/**
- * MODULE 6: PROMO ENGINE
- */
+/** MODULE 6: PROMO ENGINE */
 const CouponModule = {
     render() {
         const wrapper = BaseModule.createWrapper();
@@ -1009,8 +973,8 @@ const CouponModule = {
                 </div>
                 <div class="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 bg-black/10">
                     <div class="bg-slate-900/80 border border-slate-700 rounded-xl p-6 shadow-inner">
-                        <label class="block text-sm font-bold text-white mb-2 tracking-wide">Global Amazon Coupon Code</label>
-                        <p class="text-xs text-slate-400 mb-4">Automatically typed into the Amazon promo box at checkout.</p>
+                        <label class="block text-sm font-bold text-white mb-2 tracking-wide">Global Coupon Code</label>
+                        <p class="text-xs text-slate-400 mb-4">Automatically typed into the promo box at checkout.</p>
                         <div class="flex gap-3">
                             <input type="text" id="global-coupon" value="${globalCoupon}" placeholder="e.g. SAVE20" class="flex-1 bg-black/50 border border-slate-600 rounded-lg px-4 py-3 text-white font-mono uppercase outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 transition-all">
                             <button id="save-coupon" class="bg-royal-800 hover:bg-royal-700 border border-royal-600 text-white px-6 py-3 rounded-lg font-bold transition-all shadow-md">Set Rule</button>
@@ -1047,7 +1011,6 @@ const CouponModule = {
 
         wrapper.querySelector('#supercoins-toggle').addEventListener('change', (e) => {
             const isChecked = e.target.checked;
-            // Update custom toggle UI
             const bg = e.target.nextElementSibling;
             const dot = e.target.nextElementSibling.nextElementSibling;
             if (isChecked) {
@@ -1064,9 +1027,7 @@ const CouponModule = {
     }
 };
 
-/**
- * MODULE 7: REFUND MONITOR
- */
+/** MODULE 7: REFUND MONITOR */
 const RefundModule = {
     render() {
         const wrapper = BaseModule.createWrapper();
@@ -1083,7 +1044,7 @@ const RefundModule = {
                 </div>
                 <div class="p-8 bg-black/10">
                     <div class="flex gap-4 max-w-2xl">
-                        <input type="text" id="amazon-order-id" placeholder="Amazon Order ID (e.g. 405-1234567-8901234)" class="flex-1 bg-black/50 border border-slate-600 rounded-xl px-5 py-3.5 text-white font-mono outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition-all">
+                        <input type="text" id="amazon-order-id" placeholder="Order ID (e.g. 405-1234567-8901234)" class="flex-1 bg-black/50 border border-slate-600 rounded-xl px-5 py-3.5 text-white font-mono outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 transition-all">
                         <button id="trigger-refund-btn" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-8 py-3.5 rounded-xl shadow-lg shadow-rose-600/30 transition-transform hover:-translate-y-0.5">
                             Execute Protocol
                         </button>
@@ -1103,7 +1064,7 @@ const RefundModule = {
                     `<div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse">
                             <thead class="bg-slate-900/90 text-slate-400 text-xs uppercase tracking-widest">
-                                <tr><th class="p-5 font-semibold">ASIN</th><th class="p-5 font-semibold">Platform</th><th class="p-5 font-semibold">Cloud Status</th></tr>
+                                <tr><th class="p-5 font-semibold">Target ID</th><th class="p-5 font-semibold">Platform</th><th class="p-5 font-semibold">Cloud Status</th></tr>
                             </thead>
                             <tbody class="divide-y divide-white/5 text-sm">
                                 ${refunds.map(o => `
@@ -1129,8 +1090,8 @@ const RefundModule = {
             const input = wrapper.querySelector('#amazon-order-id');
             const orderId = input.value.trim();
             
-            if (!orderId || orderId.length < 15) {
-                Utils.showToast("Please enter a strictly valid 17-digit Amazon Order ID.", "error");
+            if (!orderId || orderId.length < 10) {
+                Utils.showToast("Please enter a valid Order ID.", "error");
                 return;
             }
 
@@ -1161,16 +1122,12 @@ const AppController = {
         
         let currentTab = Store.getState().activeTab;
 
-        // Subscribe UI Re-renders to State Changes
         Store.subscribe((state) => {
-            // 1. Navigation Event: If user clicked a different tab, ALWAYS render the new screen
             if (state.activeTab !== currentTab) {
                 currentTab = state.activeTab;
                 this.renderActiveTab();
                 return;
             }
-            
-            // 2. Data Refresh Event: Update data seamlessly without breaking UI inputs
             if (state.activeTab === 'orders') {
                 OrderModule.updateTableUI(document);
             } else if (['tracking', 'gst', 'refunds'].includes(state.activeTab)) {
@@ -1182,7 +1139,6 @@ const AppController = {
         this.triggerDataRefresh();
         this.startBackgroundPolling();
         
-        // Highlight default nav item
         this.updateNavUI('orders');
         this.renderActiveTab();
     },
@@ -1193,7 +1149,6 @@ const AppController = {
                 e.preventDefault();
                 const target = item.dataset.target;
                 
-                // Prevent unnecessary re-renders if clicking the active tab
                 if (Store.getState().activeTab === target) return;
                 
                 this.updateNavUI(target);
@@ -1248,7 +1203,6 @@ const AppController = {
         
         const newTimer = setInterval(() => {
             const { queue } = Store.getState();
-            // Pause polling if the user has an active unsynced queue to prevent UI flickering
             if (queue.length === 0) {
                 this.triggerDataRefresh();
             }
@@ -1268,7 +1222,6 @@ const AppController = {
             btn.disabled = true;
         }
 
-        // FAIL-SAFE: Broadcast exact keys and user ID to Extension immediately prior to sync
         document.dispatchEvent(new CustomEvent('SyncBotCredentials', {
             detail: { 
                 url: CONFIG.SUPABASE_URL, 
@@ -1374,11 +1327,10 @@ function bootApplication(isAutoLogin) {
                 if (onboardView) {
                     onboardView.classList.remove('hidden');
                     onboardView.classList.add('flex');
-                    // Small delay for fade effect
                     setTimeout(() => onboardView.classList.remove('opacity-0'), 50);
                 }
             }
-        }, 500); // Wait for fade out
+        }, 500);
     }
 }
 
@@ -1387,8 +1339,6 @@ function revealDashboard() {
     if (dbView) {
         dbView.classList.remove('hidden');
         dbView.classList.add('flex');
-        
-        // Staggered entrance animation
         setTimeout(() => dbView.classList.remove('opacity-0', 'translate-y-4'), 100);
     }
     
@@ -1398,7 +1348,6 @@ function revealDashboard() {
         userDisplay.innerText = user.email;
     }
     
-    // Broadcast multi-tenant key
     document.dispatchEvent(new CustomEvent('SyncBotCredentials', {
         detail: { 
             url: CONFIG.SUPABASE_URL, 
